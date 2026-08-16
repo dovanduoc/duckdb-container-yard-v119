@@ -1376,6 +1376,88 @@ table.data-table td.down { color: var(--red); font-weight: 750; }
   word-break: break-all;
 }
 
+/* Context Menu Editable Filter Box */
+.context-filter-box {
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.context-filter-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.context-filter-input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 2px 8px;
+  border-radius: 5px;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: var(--surface-2, #0F172A);
+  color: #FFFFFF;
+  font-size: 11.5px;
+  font-weight: 600;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.context-filter-input:focus {
+  border-color: #38BDF8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+}
+
+.context-filter-btn {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 5px;
+  border: 0;
+  background: var(--primary, #0284C7);
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.context-filter-btn:hover {
+  background: #0369A1;
+  transform: scale(1.03);
+}
+
+.context-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.context-chip {
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 4px;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: rgba(2, 132, 199, 0.12);
+  color: #38BDF8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.context-chip:hover {
+  background: var(--primary, #0284C7);
+  color: #FFFFFF;
+  border-color: var(--primary, #0284C7);
+  transform: translateY(-1px);
+}
+
 .context-menu-divider {
   height: 1px;
   background: rgba(255, 255, 255, 0.1);

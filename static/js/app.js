@@ -1925,11 +1925,40 @@ const DataGridManager = {
     const visibleRows = tbody ? Array.from(tbody.querySelectorAll('tr')).filter(r => !(r.cells.length === 1 && r.cells[0].colSpan > 1) && r.style.display !== 'none') : [];
     const visibleCount = visibleRows.length;
 
+    // 4. Tạo các chip tiền tố gợi ý thông minh (3 ký tự, 4 ký tự, toàn bộ)
+    const chips = [];
+    if (cleanCellText.length >= 3) {
+      chips.push({ label: `3 ký tự: "${cleanCellText.slice(0, 3)}"`, val: cleanCellText.slice(0, 3) });
+    }
+    if (cleanCellText.length >= 4) {
+      chips.push({ label: `4 ký tự: "${cleanCellText.slice(0, 4)}"`, val: cleanCellText.slice(0, 4) });
+    }
+    if (cleanCellText.length > 4) {
+      chips.push({ label: `Toàn bộ: "${shortText}"`, val: cleanCellText });
+    }
+
+    const chipsHtml = chips.map(ch => `
+      <button class="context-chip" onclick="DataGridManager.filterByValue('${table.id}', ${colIdx}, '${encodeURIComponent(ch.val)}')" title="Lọc cột theo '${ch.val}'">
+        ${ch.label}
+      </button>
+    `).join('');
+
     let html = `
       <div class="context-menu-header">
         <span class="context-col-tag">${colName}</span>
         <strong class="context-cell-val">${shortText || '(Trống)'}</strong>
       </div>
+
+      <!-- Khung lọc tùy chỉnh & chỉnh sửa giá trị (Editable Filter Box) -->
+      <div class="context-filter-box">
+        <div style="font-size:9.5px;color:var(--muted);font-weight:750;letter-spacing:0.5px">LỌC THEO GIÁ TRỊ (CÓ THỂ CHỈNH SỬA):</div>
+        <div class="context-filter-input-wrap">
+          <input type="text" id="contextCustomFilterInput" class="context-filter-input" value="${cleanCellText}" placeholder="Nhập 3-4 ký tự hoặc từ khóa..." />
+          <button class="context-filter-btn" onclick="DataGridManager.applyCustomContextFilter('${table.id}', ${colIdx})">🔍 Lọc</button>
+        </div>
+        ${chips.length > 0 ? `<div class="context-filter-chips">${chipsHtml}</div>` : ''}
+      </div>
+
       <div class="context-menu-divider"></div>
       
       <button class="context-menu-item" onclick="DataGridManager.exportFilteredData('${table.id}');DataGridManager.hideContextMenu()">
@@ -1950,11 +1979,6 @@ const DataGridManager = {
       </button>
 
       <div class="context-menu-divider"></div>
-
-      <button class="context-menu-item" onclick="DataGridManager.filterByValue('${table.id}', ${colIdx}, '${encodeURIComponent(cleanCellText)}')">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        <span>🔍 Lọc cột này chứa <strong>"${shortText}"</strong></span>
-      </button>
 
       <button class="context-menu-item" onclick="DataGridManager.copyToClipboard('${encodeURIComponent(cleanCellText)}')">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -2004,6 +2028,26 @@ const DataGridManager = {
     menu.style.left = `${posX}px`;
     menu.style.top = `${posY}px`;
     this.activeContextMenu = menu;
+
+    // Tự động focus & bôi đen ô input để người dùng chỉnh sửa hoặc nhấn Enter ngay
+    setTimeout(() => {
+      const inp = document.getElementById('contextCustomFilterInput');
+      if (inp) {
+        inp.focus();
+        inp.select();
+        inp.onkeydown = (e) => {
+          if (e.key === 'Enter') {
+            DataGridManager.applyCustomContextFilter(table.id, colIdx);
+          }
+        };
+      }
+    }, 40);
+  },
+
+  applyCustomContextFilter(tableId, colIdx) {
+    const inp = document.getElementById('contextCustomFilterInput');
+    const val = inp ? inp.value.trim() : '';
+    this.filterByValue(tableId, colIdx, encodeURIComponent(val));
   },
 
   hideContextMenu() {
@@ -2022,7 +2066,7 @@ const DataGridManager = {
       inp.value = val;
       const clearBtn = inp.nextElementSibling;
       if (clearBtn && clearBtn.classList.contains('grid-filter-clear-btn')) {
-        clearBtn.style.display = 'block';
+        clearBtn.style.display = val ? 'block' : 'none';
       }
       this.applyTableFilters(table);
       showToast(`🔍 Đang lọc cột theo giá trị: "${val}"`);
