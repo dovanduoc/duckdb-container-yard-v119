@@ -51,11 +51,11 @@ def df_to_clean_json(df: pd.DataFrame):
 
 @api_router.get("/meta")
 def get_system_metadata():
-    """Lấy thông tin cấu hình, dải ngày và danh mục bãi cảng."""
+    """Lấy thông tin cấu hình, dải ngày chuẩn ISO YYYY-MM-DD và danh mục bãi cảng."""
     dates_df = get_available_analysis_dates()
     yards_df = get_yard_list()
-    min_date = str(dates_df.loc[0, "min_date"]) if not dates_df.empty else "2025-08-15"
-    max_date = str(dates_df.loc[0, "max_date"]) if not dates_df.empty else "2026-08-14"
+    min_date = str(pd.to_datetime(dates_df.loc[0, "min_date"]).date()) if not dates_df.empty else "2025-08-15"
+    max_date = str(pd.to_datetime(dates_df.loc[0, "max_date"]).date()) if not dates_df.empty else "2026-08-14"
 
     return {
         "app_version": APP_CODE_VERSION,
@@ -70,7 +70,7 @@ def get_system_metadata():
 def get_dashboard_overview(date: Optional[str] = None):
     """Lấy số liệu tổng quan Dashboard: 4 KPIs, Bảng xếp hạng, Cảnh báo quá tải."""
     dates_df = get_available_analysis_dates()
-    max_date = str(dates_df.loc[0, "max_date"]) if not dates_df.empty else "2026-08-14"
+    max_date = str(pd.to_datetime(dates_df.loc[0, "max_date"]).date()) if not dates_df.empty else "2026-08-14"
     selected_date = date if date else max_date
 
     try:
@@ -87,9 +87,10 @@ def get_dashboard_overview(date: Optional[str] = None):
 
         # Lấy giá trị KPI
         kpi_dict = dict(zip(kpi_df["chi_so"], kpi_df["gia_tri"])) if not kpi_df.empty else {}
+        selected_date_str = str(pd.to_datetime(selected_date).date())
 
         return {
-            "selected_date": str(selected_date),
+            "selected_date": selected_date_str,
             "kpi_cards": {
                 "current_containers": kpi_dict.get("Số container đang tồn", 0),
                 "total_teu": total_teu,

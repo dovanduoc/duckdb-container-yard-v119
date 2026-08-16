@@ -187,15 +187,20 @@ async function loadMetadata() {
   try {
     const res = await fetch('/api/meta');
     const data = await res.json();
-    AppState.minDate = data.min_date;
-    AppState.maxDate = data.max_date;
-    AppState.analysisDate = data.max_date;
+    const cleanMinDate = String(data.min_date || '2025-08-15').slice(0, 10);
+    const cleanMaxDate = String(data.max_date || '2026-08-14').slice(0, 10);
+
+    AppState.minDate = cleanMinDate;
+    AppState.maxDate = cleanMaxDate;
+    AppState.analysisDate = cleanMaxDate;
     AppState.yards = data.yards;
 
     const dateInput = document.getElementById('analysisDateInput');
-    dateInput.value = data.max_date;
-    dateInput.min = data.min_date;
-    dateInput.max = data.max_date;
+    if (dateInput) {
+      dateInput.min = cleanMinDate;
+      dateInput.max = cleanMaxDate;
+      dateInput.value = cleanMaxDate;
+    }
   } catch (err) {
     console.error('Lỗi khi nạp metadata:', err);
   }
@@ -205,6 +210,14 @@ async function loadOverviewData() {
   try {
     const res = await fetch(`/api/overview?date=${AppState.analysisDate}`);
     const data = await res.json();
+
+    if (data.selected_date) {
+      const cleanDate = String(data.selected_date).slice(0, 10);
+      const dateInput = document.getElementById('analysisDateInput');
+      if (dateInput && dateInput.value !== cleanDate) {
+        dateInput.value = cleanDate;
+      }
+    }
 
     // 4 KPI Cards
     document.getElementById('kpiContCount').textContent = (data.kpi_cards.current_containers || 0).toLocaleString();
