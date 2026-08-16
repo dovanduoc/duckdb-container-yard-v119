@@ -1542,7 +1542,10 @@ const DataGridManager = {
       thead.appendChild(filterRow);
     }
 
-    // 3. Gắn sự kiện Chuột Phải (Context Menu) cho tbody
+    // 3. Gắn Thanh Trạng Thái (Status Bar: Total Row Count & Quick Export)
+    this.ensureTableStatusBar(table);
+
+    // 4. Gắn sự kiện Chuột Phải (Context Menu) cho tbody
     const tbody = table.querySelector('tbody');
     if (tbody && !tbody.dataset.contextBound) {
       tbody.dataset.contextBound = 'true';
@@ -1574,6 +1577,62 @@ const DataGridManager = {
     }
 
     this.applyTableFilters(table);
+  },
+
+  ensureTableStatusBar(table) {
+    if (!table || !table.id) return;
+    const parent = table.closest('.table-wrap') || table.parentElement;
+    if (!parent) return;
+
+    let bar = parent.querySelector(`.grid-status-bar[data-table-id="${table.id}"]`);
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.className = 'grid-status-bar';
+      bar.dataset.tableId = table.id;
+      bar.innerHTML = `
+        <div class="grid-status-info">
+          <span class="grid-status-icon">📊</span>
+          <span class="grid-status-text">Hiển thị <strong class="grid-visible-count">0</strong> / <span class="grid-total-count">0</span> dòng</span>
+          <span class="grid-filtered-badge" style="display:none">🔍 Đang lọc</span>
+        </div>
+        <div class="grid-status-actions">
+          <button class="grid-quick-export-btn" title="Xuất dữ liệu đang hiển thị ra file Excel (CSV UTF-8 BOM)" onclick="DataGridManager.exportFilteredData('${table.id}')">
+            📥 Xuất Excel (dữ liệu đang lọc)
+          </button>
+        </div>
+      `;
+      parent.appendChild(bar);
+    }
+    this.updateTableStatus(table);
+  },
+
+  updateTableStatus(table) {
+    if (!table || !table.id) return;
+    const parent = table.closest('.table-wrap') || table.parentElement;
+    if (!parent) return;
+
+    const bar = parent.querySelector(`.grid-status-bar[data-table-id="${table.id}"]`);
+    if (!bar) return;
+
+    const tbody = table.querySelector('tbody');
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => !(r.cells.length === 1 && r.cells[0].colSpan > 1));
+    const totalCount = rows.length;
+    const visibleCount = rows.filter(r => r.style.display !== 'none').length;
+
+    const visEl = bar.querySelector('.grid-visible-count');
+    const totEl = bar.querySelector('.grid-total-count');
+    const badgeEl = bar.querySelector('.grid-filtered-badge');
+
+    if (visEl) visEl.textContent = visibleCount.toLocaleString();
+    if (totEl) totEl.textContent = totalCount.toLocaleString();
+    if (badgeEl) {
+      badgeEl.style.display = (visibleCount < totalCount && totalCount > 0) ? 'inline-block' : 'none';
+      if (visibleCount < totalCount) {
+        badgeEl.textContent = `🔍 Đang lọc: ${visibleCount}/${totalCount}`;
+      }
+    }
   },
 
   toggleSort(table, colIdx) {
@@ -1753,6 +1812,72 @@ const DataGridManager = {
       row.style.display = isMatch ? '' : 'none';
       if (isMatch) matchCount++;
     });
+
+    this.updateTableStatus(table);
+  },
+
+  exportFilteredData(tableId) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+
+    const thead = table.querySelector('thead');
+    const headerRow = thead ? thead.querySelector('tr:first-child') : null;
+    if (!headerRow) return;
+
+    const ths = Array.from(headerRow.querySelectorAll('th'));
+    const validColIndices = [];
+    const headers = [];
+
+    ths.forEach((th, idx) => {
+      const txt = th.textContent.replace(/[↕▲▼*•#]/g, '').trim();
+      const lower = txt.toLowerCase();
+      if (lower !== '#' && !lower.includes('thao tác') && !lower.includes('lộ trình') && lower !== '') {
+        validColIndices.push(idx);
+        headers.push(`"${txt.replace(/"/g, '""')}"`);
+      }
+    });
+
+    const tbody = table.querySelector('tbody');
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => {
+      if (r.cells.length === 1 && r.cells[0].colSpan > 1) return false;
+      return r.style.display !== 'none';
+    });
+
+    if (rows.length === 0) {
+      showToast('⚠️ Không có dòng dữ liệu nào đang hiển thị để xuất!');
+      return;
+    }
+
+    const csvRows = [headers.join(',')];
+
+    rows.forEach(r => {
+      const rowData = [];
+      validColIndices.forEach(colIdx => {
+        const cell = r.cells[colIdx];
+        let val = cell ? cell.textContent.replace(/\s+/g, ' ').trim() : '';
+        val = val.replace(/[✓🔥⏳]/g, '').trim();
+        rowData.push(`"${val.replace(/"/g, '""')}"`);
+      });
+      csvRows.push(rowData.join(','));
+    });
+
+    // Thêm UTF-8 BOM (\ufeff) để Microsoft Excel hiển thị tiếng Việt có dấu chuẩn 100%
+    const csvContent = '\ufeff' + csvRows.join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    const dateStr = AppState.analysisDate || new Date().toISOString().slice(0, 10);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `xuat_excel_${tableId}_${dateStr}_${rows.length}_dong.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showToast(`📥 Đã xuất thành công ${rows.length} dòng dữ liệu đang lọc ra file Excel/CSV!`);
   },
 
   showContextMenu(x, y, context) {
@@ -1795,6 +1920,11 @@ const DataGridManager = {
       }
     }
 
+    // 3. Đếm số dòng hiển thị hiện tại của bảng
+    const tbody = table.querySelector('tbody');
+    const visibleRows = tbody ? Array.from(tbody.querySelectorAll('tr')).filter(r => !(r.cells.length === 1 && r.cells[0].colSpan > 1) && r.style.display !== 'none') : [];
+    const visibleCount = visibleRows.length;
+
     let html = `
       <div class="context-menu-header">
         <span class="context-col-tag">${colName}</span>
@@ -1802,6 +1932,13 @@ const DataGridManager = {
       </div>
       <div class="context-menu-divider"></div>
       
+      <button class="context-menu-item" onclick="DataGridManager.exportFilteredData('${table.id}');DataGridManager.hideContextMenu()">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <span>📥 Xuất Excel (<strong>${visibleCount}</strong> dòng đang lọc)</span>
+      </button>
+
+      <div class="context-menu-divider"></div>
+
       <button class="context-menu-item" onclick="DataGridManager.sortColumn(document.getElementById('${table.id}'), ${colIdx}, 'asc');DataGridManager.hideContextMenu()">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/><path d="M11 12h4"/><path d="M11 16h7"/><path d="M11 20h10"/></svg>
         <span>▲ Sắp xếp tăng dần (A ➔ Z / 0 ➔ 9)</span>

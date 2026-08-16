@@ -1267,6 +1267,70 @@ table.data-table td.down { color: var(--red); font-weight: 750; }
   border-color: #EF4444;
 }
 
+/* Data Grid Footer Status Bar: Total Row Count & Quick Export */
+.grid-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--surface-2, #0F172A);
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--muted);
+  user-select: none;
+}
+
+.grid-status-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.grid-status-icon {
+  font-size: 12px;
+}
+
+.grid-visible-count {
+  color: var(--primary, #0284C7);
+  font-weight: 850;
+}
+
+.grid-total-count {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.grid-filtered-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(2, 132, 199, 0.15);
+  color: #38BDF8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.grid-quick-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-light);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.grid-quick-export-btn:hover {
+  background: var(--primary, #0284C7);
+  color: #FFFFFF;
+  border-color: var(--primary, #0284C7);
+}
+
 /* Custom Right-Click Context Menu */
 .grid-context-menu {
   position: fixed;
