@@ -154,22 +154,24 @@ def search_containers(
     filter_type: str = Query("current", enum=["current", "overdue", "upcoming"]),
     min_days: int = 30,
     warning_days: int = 5,
-    limit: int = 50
+    limit: int = 50,
+    yard_code: Optional[str] = None
 ):
-    """Tra cứu danh sách container: đang tồn, quá hạn hoặc sắp quá hạn theo ngày phân tích As-of-Date."""
+    """Tra cứu danh sách container: đang tồn, quá hạn hoặc sắp quá hạn theo ngày phân tích As-of-Date (có lọc theo Block bãi)."""
     try:
         if filter_type == "current":
-            df = get_current_containers(limit=limit, selected_date=date)
+            df = get_current_containers(limit=limit, selected_date=date, yard_code=yard_code)
         elif filter_type == "overdue":
-            df = get_overdue_containers(min_days=min_days, limit=limit, selected_date=date)
+            df = get_overdue_containers(min_days=min_days, limit=limit, selected_date=date, yard_code=yard_code)
         elif filter_type == "upcoming":
-            df = get_upcoming_overdue_containers(overdue_threshold_days=min_days, warning_days=warning_days, selected_date=date).head(limit)
+            df = get_upcoming_overdue_containers(overdue_threshold_days=min_days, warning_days=warning_days, selected_date=date, yard_code=yard_code).head(limit)
         else:
-            df = get_current_containers(limit=limit, selected_date=date)
+            df = get_current_containers(limit=limit, selected_date=date, yard_code=yard_code)
 
         return {
             "filter_type": filter_type,
             "selected_date": date,
+            "yard_code": yard_code,
             "total_records": len(df),
             "data": df_to_clean_json(df)
         }
@@ -182,21 +184,22 @@ def export_containers_csv(
     date: Optional[str] = None,
     filter_type: str = Query("upcoming", enum=["current", "overdue", "upcoming"]),
     min_days: int = 30,
-    warning_days: int = 5
+    warning_days: int = 5,
+    yard_code: Optional[str] = None
 ):
     """Xuất toàn bộ danh sách container (không giới hạn số lượng) ra file CSV kèm UTF-8 BOM chuẩn Microsoft Excel."""
     try:
         if filter_type == "current":
-            df = get_current_containers(limit=None, selected_date=date)
+            df = get_current_containers(limit=None, selected_date=date, yard_code=yard_code)
             filename_suffix = "dang_ton"
         elif filter_type == "overdue":
-            df = get_overdue_containers(min_days=min_days, limit=None, selected_date=date)
+            df = get_overdue_containers(min_days=min_days, limit=None, selected_date=date, yard_code=yard_code)
             filename_suffix = f"qua_han_{min_days}ngay"
         elif filter_type == "upcoming":
-            df = get_upcoming_overdue_containers(overdue_threshold_days=min_days, warning_days=warning_days, selected_date=date)
+            df = get_upcoming_overdue_containers(overdue_threshold_days=min_days, warning_days=warning_days, selected_date=date, yard_code=yard_code)
             filename_suffix = f"sap_qua_han_con_{warning_days}ngay"
         else:
-            df = get_current_containers(limit=None, selected_date=date)
+            df = get_current_containers(limit=None, selected_date=date, yard_code=yard_code)
             filename_suffix = "containers"
 
         selected_date_str = str(pd.to_datetime(date).date()) if date else "latest"

@@ -328,18 +328,36 @@
       <div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(360px,1fr);gap:14px">
         <!-- Trái: Danh sách container lọc -->
         <article class="card">
-          <div class="card-head">
+          <div class="card-head" style="flex-wrap:wrap;gap:10px">
             <div class="card-title">📦 Danh Sách Container Trong Bãi</div>
-            <div class="form-row" style="margin:0;gap:8px">
-              <select class="form-control" id="containerFilterSelect">
+            <div class="form-row" style="margin:0;gap:8px;flex-wrap:wrap">
+              <!-- Bộ lọc Loại tồn -->
+              <select class="form-control" id="containerFilterSelect" style="font-size:11.5px">
                 <option value="current">Đang tồn bãi (Hist = N)</option>
                 <option value="overdue">Tồn bãi quá hạn (&ge;30 ngày)</option>
                 <option value="upcoming">Sắp quá hạn (còn &le;5 ngày)</option>
+              </select>
+              <!-- Bộ lọc Block Bãi (Terminal B - B1 đến B8) -->
+              <select class="form-control" id="containerYardFilterSelect" style="font-size:11.5px;font-weight:750">
+                <option value="">🏗️ Toàn bộ Block Bãi</option>
+                <option value="YA01">Block B1 - Hàng Xuất Dãy 1</option>
+                <option value="YA02">Block B2 - Hàng Xuất Dãy 2</option>
+                <option value="YA03">Block B3 - Bãi Reefer Lạnh</option>
+                <option value="YA04">Block B4 - Cont Tuyến Á-Âu</option>
+                <option value="YA05">Block B5 - Cont Tuyến Nội Địa</option>
+                <option value="YA06">Block B6 - Bãi Chuyển Tải</option>
+                <option value="YA07">Block B7 - Bãi Hàng DG/OOG</option>
+                <option value="YA08">Block B8 - Bãi Đệm Cổng B</option>
               </select>
               <button class="btn-primary" id="exportContainerBtn" style="padding:6px 12px;font-size:11px;white-space:nowrap" title="Xuất toàn bộ danh sách sang Excel/CSV">
                 📥 Xuất Excel/CSV
               </button>
             </div>
+          </div>
+          <!-- Badge Thông Báo Bộ Lọc Đang Chọn -->
+          <div id="activeYardFilterBar" style="display:none;padding:6px 14px;background:rgba(2,132,199,0.1);border-bottom:1px solid rgba(2,132,199,0.2);align-items:center;justify-content:space-between">
+            <div style="font-size:11px;font-weight:700;color:var(--primary)" id="activeYardFilterText">📦 Đang lọc: Block B1 (YA01)</div>
+            <button class="btn btn-secondary btn-sm" onclick="clearYardBlockFilter()" style="padding:2px 8px;font-size:10px;cursor:pointer">✕ Xóa lọc Block</button>
           </div>
           <div class="table-wrap">
             <table class="data-table" id="tableContainerList">

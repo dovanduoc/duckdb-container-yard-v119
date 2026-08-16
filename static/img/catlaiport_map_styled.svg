@@ -29,28 +29,25 @@
       .digital-yard-block { cursor: pointer; }
       .digital-yard-block:hover { stroke: #FFFFFF !important; stroke-width: 3px !important; fill-opacity: 0.95 !important; filter: drop-shadow(0 0 10px #38BDF8); }
       
-      /* Nhãn chữ tên Block có Semantic Zooming */
+      /* Nhãn chữ tên Block to, rõ nét, hiển thị trực tiếp và sắc nét trên mọi nền */
       .semantic-block-label {
-        opacity: 0;
-        transition: opacity 0.25s ease;
-        pointer-events: none;
-      }
-      .semantic-block-label.visible {
         opacity: 1;
+        pointer-events: none;
       }
       
       .clean-block-label {
-        font-size: 8px;
-        font-weight: 900;
+        font-size: 13.5px;
+        font-weight: 950;
         fill: #FFFFFF;
         text-anchor: middle;
         dominant-baseline: central;
         paint-order: stroke fill;
-        stroke: #071226;
-        stroke-width: 2.2px;
+        stroke: #030712;
+        stroke-width: 4px;
         stroke-linecap: round;
         stroke-linejoin: round;
-        letter-spacing: 0.2px;
+        letter-spacing: 0.5px;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
       }
       
       .building { fill: #334155; stroke: #64748B; stroke-width: 0.8px; fill-opacity: 0.8; }

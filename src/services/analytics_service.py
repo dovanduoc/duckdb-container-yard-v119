@@ -88,9 +88,9 @@ def validate_date_range(start_date, end_date):
     return start_date, end_date
 
 
-def get_current_containers(limit=None, selected_date=None):
+def get_current_containers(limit=None, selected_date=None, yard_code=None):
     """
-    Lấy danh sách container tồn bãi theo lát cắt thời gian As-of-Date.
+    Lấy danh sách container tồn bãi theo lát cắt thời gian As-of-Date (có hỗ trợ lọc theo bãi/block yard_code).
     Quy tắc: GateInDate <= selected_date AND (hist='N' OR gate_out_ts IS NULL OR selected_date <= GateOutDate).
     Công thức lưu bãi: DATE_DIFF('day', GateInDate, selected_date) + 1.
     Vị trí bãi: Suy ra từ sự kiện gần nhất tính đến ngày selected_date.
@@ -107,6 +107,13 @@ def get_current_containers(limit=None, selected_date=None):
         limit_clause = f"LIMIT {limit}"
     else:
         limit_clause = ""
+
+    yard_filter_clause = ""
+    params = [target_date, target_date, target_date, target_date]
+
+    if yard_code is not None and str(yard_code).strip() != "":
+        yard_filter_clause = "WHERE UPPER(TRIM(y.yard_code)) = UPPER(TRIM(?))"
+        params.append(str(yard_code).strip())
 
     query = f"""
         WITH last_event_as_of AS (
@@ -164,12 +171,12 @@ def get_current_containers(limit=None, selected_date=None):
             ON c.shipping_line_id = s.shipping_line_id
         LEFT JOIN v_yard_area AS y
             ON c.effective_yard_area_id = y.yard_area_id
+        {yard_filter_clause}
         ORDER BY
             c.dwell_days DESC,
             c.container_no ASC
         {limit_clause}
     """
-    params = [target_date, target_date, target_date, target_date]
     return con.execute(query, params).df()
 
 
@@ -177,8 +184,8 @@ def get_current_containers(limit=None, selected_date=None):
 get_containers_as_of_date = get_current_containers
 
 
-def get_overdue_containers(min_days=30, limit=None, selected_date=None):
-    """Lấy danh sách container lưu bãi vượt ngưỡng số ngày quy định tại ngày phân tích."""
+def get_overdue_containers(min_days=30, limit=None, selected_date=None, yard_code=None):
+    """Lấy danh sách container lưu bãi vượt ngưỡng số ngày quy định tại ngày phân tích (có hỗ trợ lọc theo yard_code)."""
     con = get_connection()
     target_date = resolve_analysis_date(selected_date)
 
@@ -197,6 +204,13 @@ def get_overdue_containers(min_days=30, limit=None, selected_date=None):
         limit_clause = f"LIMIT {limit}"
     else:
         limit_clause = ""
+
+    yard_filter_clause = ""
+    params = [target_date, target_date, target_date, target_date, min_days]
+
+    if yard_code is not None and str(yard_code).strip() != "":
+        yard_filter_clause = "AND UPPER(TRIM(y.yard_code)) = UPPER(TRIM(?))"
+        params.append(str(yard_code).strip())
 
     query = f"""
         WITH last_event_as_of AS (
@@ -253,12 +267,12 @@ def get_overdue_containers(min_days=30, limit=None, selected_date=None):
         LEFT JOIN v_yard_area AS y
             ON c.effective_yard_area_id = y.yard_area_id
         WHERE c.dwell_days >= ?
+          {yard_filter_clause}
         ORDER BY
             c.dwell_days DESC,
             c.container_no ASC
         {limit_clause}
     """
-    params = [target_date, target_date, target_date, target_date, min_days]
     return con.execute(query, params).df()
 
 
@@ -480,8 +494,8 @@ def get_container_type_teu_ranking(selected_date=None):
     return con.execute(query, [target_date, target_date]).df()
 
 
-def get_upcoming_overdue_containers(overdue_threshold_days=30, warning_days=5, selected_date=None):
-    """Tìm container đang tồn sắp đạt ngưỡng quá hạn tại ngày phân tích."""
+def get_upcoming_overdue_containers(overdue_threshold_days=30, warning_days=5, selected_date=None, yard_code=None):
+    """Tìm container đang tồn sắp đạt ngưỡng quá hạn tại ngày phân tích (có hỗ trợ lọc theo yard_code)."""
     con = get_connection()
     target_date = resolve_analysis_date(selected_date)
 
@@ -496,7 +510,20 @@ def get_upcoming_overdue_containers(overdue_threshold_days=30, warning_days=5, s
     if warning_days >= overdue_threshold_days:
         raise ValueError("Số ngày cảnh báo phải nhỏ hơn ngưỡng quá hạn.")
 
-    query = """
+    yard_filter_clause = ""
+    parameters = [
+        target_date, target_date, target_date, target_date,
+        overdue_threshold_days,
+        overdue_threshold_days,
+        warning_days,
+        overdue_threshold_days
+    ]
+
+    if yard_code is not None and str(yard_code).strip() != "":
+        yard_filter_clause = "AND UPPER(TRIM(y.yard_code)) = UPPER(TRIM(?))"
+        parameters.append(str(yard_code).strip())
+
+    query = f"""
         WITH last_event_as_of AS (
             SELECT
                 container_id,
@@ -545,18 +572,12 @@ def get_upcoming_overdue_containers(overdue_threshold_days=30, warning_days=5, s
             ON c.shipping_line_id = s.shipping_line_id
         WHERE c.dwell_days >= (CAST(? AS INTEGER) - CAST(? AS INTEGER))
           AND c.dwell_days < CAST(? AS INTEGER)
+          {yard_filter_clause}
         ORDER BY
             remaining_days ASC,
             c.gate_in_ts ASC,
             c.container_no ASC
     """
-    parameters = [
-        target_date, target_date, target_date, target_date,
-        overdue_threshold_days,
-        overdue_threshold_days,
-        warning_days,
-        overdue_threshold_days
-    ]
     return con.execute(query, parameters).df()
 
 

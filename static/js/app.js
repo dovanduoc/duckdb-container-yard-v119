@@ -125,10 +125,21 @@ function setupEventListeners() {
   if (typeTopBtn) typeTopBtn.addEventListener('click', toggleType);
   if (typeBottomBtn) typeBottomBtn.addEventListener('click', toggleType);
 
-  // Container Filter
-  document.getElementById('containerFilterSelect').addEventListener('change', async (e) => {
-    await loadContainerList(e.target.value);
-  });
+  // Container Filter (Loại tồn bãi)
+  const contFilterSelect = document.getElementById('containerFilterSelect');
+  if (contFilterSelect) {
+    contFilterSelect.addEventListener('change', async (e) => {
+      await loadContainerList(e.target.value);
+    });
+  }
+
+  // Block Yard Filter (Lọc theo từng Block Bãi B1 - B8)
+  const yardFilterSelect = document.getElementById('containerYardFilterSelect');
+  if (yardFilterSelect) {
+    yardFilterSelect.addEventListener('change', async () => {
+      await loadContainerList();
+    });
+  }
 
   // Xuất file CSV / Excel danh sách sắp quá hạn từ Dashboard
   const triggerExportUpcoming = () => {
@@ -150,13 +161,18 @@ function setupEventListeners() {
   if (viewUpTop) viewUpTop.addEventListener('click', triggerViewAllUpcoming);
   if (viewUpBottom) viewUpBottom.addEventListener('click', triggerViewAllUpcoming);
 
-  // Xuất CSV / Excel từ màn hình Container
+  // Xuất CSV / Excel từ màn hình Container (Hỗ trợ xuất đúng Block đang lọc)
   const expContBtn = document.getElementById('exportContainerBtn');
   if (expContBtn) {
     expContBtn.addEventListener('click', () => {
-      const filterType = document.getElementById('containerFilterSelect').value || 'current';
-      showToast(`📥 Đang xuất dữ liệu container (${filterType})...`);
-      window.location.href = `/api/containers/export?date=${AppState.analysisDate}&filter_type=${filterType}`;
+      const filterType = document.getElementById('containerFilterSelect')?.value || 'current';
+      const yardCode = document.getElementById('containerYardFilterSelect')?.value || '';
+      let url = `/api/containers/export?date=${AppState.analysisDate}&filter_type=${filterType}`;
+      if (yardCode) {
+        url += `&yard_code=${encodeURIComponent(yardCode)}`;
+      }
+      showToast(`📥 Đang xuất file dữ liệu container (${filterType}${yardCode ? ' • ' + yardCode : ''})...`);
+      window.location.href = url;
     });
   }
 
@@ -676,15 +692,10 @@ function renderCatLaiSvgMap(blocks) {
       tooltip.style.top = `${y}px`;
     });
 
-    group.addEventListener('mouseleave', () => {
-      tooltip.classList.remove('show');
-    });
-
     group.addEventListener('click', async () => {
-      const bCode = group.dataset.blockCode;
+      const code = group.dataset.yardCode;
       const name = group.dataset.yardName;
-      showToast(`📦 Đang xem danh sách container tại ${bCode} (${name})...`);
-      await switchView('container');
+      await drillDownToBlock(code, name);
     });
   });
 }
@@ -855,10 +866,9 @@ async function initDigitalTwinMap(blocks) {
           // Nếu người dùng vừa kéo Pan bản đồ thì không kích hoạt Drill-Down
           if (PanZoomState.dragDistance > 6) return;
 
-          const bCode = el.dataset.blockCode;
+          const code = el.dataset.yardCode;
           const name = el.dataset.yardName;
-          showToast(`📦 Đang xem danh sách container tại ${bCode} (${name})...`);
-          await switchView('container');
+          await drillDownToBlock(code, name);
         });
       });
 
@@ -962,30 +972,90 @@ function setYardMapMode(mode) {
   }
 }
 
+// =========================================================================
+// DRILL-DOWN TỪ MAP SANG DANH SÁCH CONTAINER & BỘ LỌC BLOCK BÃI
+// =========================================================================
+async function drillDownToBlock(yardCode, blockName) {
+  // 1. Chuyển sang View Container
+  await switchView('container');
+
+  // 2. Set giá trị cho dropdown filter
+  const yardSelect = document.getElementById('containerYardFilterSelect');
+  if (yardSelect) {
+    yardSelect.value = yardCode || '';
+  }
+
+  // 3. Tải danh sách container đã lọc
+  await loadContainerList();
+  showToast(`📦 Đang lọc container tại: ${blockName || yardCode} (${yardCode})`);
+}
+
+async function clearYardBlockFilter() {
+  const yardSelect = document.getElementById('containerYardFilterSelect');
+  if (yardSelect) {
+    yardSelect.value = '';
+  }
+  const filterBar = document.getElementById('activeYardFilterBar');
+  if (filterBar) {
+    filterBar.style.display = 'none';
+  }
+  await loadContainerList();
+  showToast('🌐 Đã hiển thị toàn bộ container các bãi cảng Cát Lái');
+}
+
 async function loadContainerList(filterType) {
   try {
-    const res = await fetch(`/api/containers?date=${AppState.analysisDate}&filter_type=${filterType}&limit=40`);
+    if (!filterType) {
+      const typeSelect = document.getElementById('containerFilterSelect');
+      filterType = typeSelect ? typeSelect.value : 'current';
+    }
+
+    const yardSelect = document.getElementById('containerYardFilterSelect');
+    const yardCode = yardSelect ? yardSelect.value : '';
+
+    // Cập nhật thanh filter bar nếu có yardCode
+    const filterBar = document.getElementById('activeYardFilterBar');
+    const filterText = document.getElementById('activeYardFilterText');
+    if (filterBar && filterText) {
+      if (yardCode) {
+        const selectedOpt = yardSelect.options[yardSelect.selectedIndex]?.text || yardCode;
+        filterBar.style.display = 'flex';
+        filterText.textContent = `📦 Đang lọc: ${selectedOpt}`;
+      } else {
+        filterBar.style.display = 'none';
+      }
+    }
+
+    let url = `/api/containers?date=${AppState.analysisDate}&filter_type=${filterType}&limit=50`;
+    if (yardCode) {
+      url += `&yard_code=${encodeURIComponent(yardCode)}`;
+    }
+
+    const res = await fetch(url);
     const data = await res.json();
     const tbody = document.querySelector('#tableContainerList tbody');
 
     if (!data.data || data.data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center">Không tìm thấy container phù hợp</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Không tìm thấy container nào đang tồn tại bãi <strong>${yardCode || 'này'}</strong> vào ngày ${AppState.analysisDate}</td></tr>`;
       return;
     }
 
-    tbody.innerHTML = data.data.map(c => `
-      <tr>
-        <td><strong style="color:var(--primary)">${c.container_no}</strong></td>
-        <td>${c.shipping_line_code || '-'}</td>
-        <td>${c.yard_code || '-'}</td>
-        <td>${c.container_size || 20}'</td>
-        <td>${c.container_type || '-'}</td>
-        <td>${c.full_empty || '-'}</td>
-        <td>${c.gate_in_ts || '-'}</td>
-        <td><strong>${c.dwell_days || 0} ngày</strong></td>
-        <td><button class="btn-primary" style="padding:3px 8px;font-size:10px" onclick="searchContainerHistory('${c.container_no}')">Xem lộ trình</button></td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = data.data.map(c => {
+      const displayYard = c.yard_name ? `${c.yard_name} (${c.yard_code || '-'})` : (c.yard_code || '-');
+      return `
+        <tr>
+          <td><strong style="color:var(--primary)">${c.container_no}</strong></td>
+          <td>${c.shipping_line_code || '-'}</td>
+          <td><span style="font-weight:750;color:#0284C7">${displayYard}</span></td>
+          <td>${c.container_size || 20}'</td>
+          <td>${c.container_type || 'GP'}</td>
+          <td><span class="badge ${c.full_empty === 'Full' ? 'badge-primary' : 'badge-secondary'}">${c.full_empty || 'F'}</span></td>
+          <td>${c.gate_in_ts ? c.gate_in_ts.substring(0, 10) : '-'}</td>
+          <td><strong style="color:${c.dwell_days >= 30 ? 'var(--red)' : c.dwell_days >= 25 ? 'var(--amber)' : 'var(--green)'}">${c.dwell_days} ngày</strong></td>
+          <td><button class="btn-primary" style="padding:3px 8px;font-size:10px" onclick="searchContainerHistory('${c.container_no}')">Xem lộ trình</button></td>
+        </tr>
+      `;
+    }).join('');
   } catch (err) {
     console.error('Lỗi load container list:', err);
   }
