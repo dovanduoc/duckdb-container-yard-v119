@@ -58,6 +58,7 @@ function showToast(message) {
 // =========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
+  DataGridManager.init();
   await loadMetadata();
   await loadOverviewData();
 });
@@ -451,6 +452,7 @@ function renderOverviewShippingTable() {
   if (topTxt) topTxt.textContent = isFull ? 'Thu gọn (Top 5)' : `Xem tất cả (${total})`;
   if (topBtn) topBtn.classList.toggle('expanded', isFull);
   if (bottomBtn) bottomBtn.textContent = isFull ? '▲ Thu gọn về Top 5' : `Xem toàn bộ ${total} hãng tàu ➔`;
+  DataGridManager.enhanceTable(document.getElementById('tableOverviewShipping'));
 }
 
 function renderOverviewTypeTable() {
@@ -485,6 +487,7 @@ function renderOverviewTypeTable() {
   if (topTxt) topTxt.textContent = isFull ? 'Thu gọn (Top 5)' : `Xem tất cả (${total})`;
   if (topBtn) topBtn.classList.toggle('expanded', isFull);
   if (bottomBtn) bottomBtn.textContent = isFull ? '▲ Thu gọn về Top 5' : `Xem toàn bộ ${total} loại container ➔`;
+  DataGridManager.enhanceTable(document.getElementById('tableOverviewType'));
 }
 
 let cachedYardBlocks = [];
@@ -564,6 +567,7 @@ async function loadYardMatrix() {
       `;
     }).join('');
 
+    DataGridManager.enhanceTable(document.getElementById('tableYardDetail'));
   } catch (err) {
     console.error('Lỗi khi nạp yard matrix:', err);
   }
@@ -1164,6 +1168,8 @@ async function loadContainerList(filterType) {
         </tr>
       `;
     }).join('');
+
+    DataGridManager.enhanceTable(document.getElementById('tableContainerList'));
   } catch (err) {
     console.error('Lỗi load container list:', err);
   }
@@ -1230,6 +1236,8 @@ async function loadTrendData(yardId) {
         <td><strong style="color:${row.ty_le_su_dung >= 95 ? 'var(--red)' : 'var(--ink)'}">${row.ty_le_su_dung}%</strong></td>
       </tr>
     `).join('');
+
+    DataGridManager.enhanceTable(document.getElementById('tableTrendHistory'));
   } catch (err) {
     console.error('Lỗi khi nạp trend:', err);
   }
@@ -1265,6 +1273,9 @@ async function loadRankingData() {
         <td><span class="up">${row.teu_percentage}%</span></td>
       </tr>
     `).join('');
+
+    DataGridManager.enhanceTable(document.getElementById('tableRankShippingFull'));
+    DataGridManager.enhanceTable(document.getElementById('tableRankTypeFull'));
   } catch (err) {
     console.error('Lỗi khi nạp rankings:', err);
   }
@@ -1306,6 +1317,9 @@ async function executeEtl(sourceType) {
         <td>${v.full_empty}</td>
       </tr>
     `).join('');
+
+    DataGridManager.enhanceTable(document.getElementById('tableEtlRejected'));
+    DataGridManager.enhanceTable(document.getElementById('tableEtlValid'));
 
     showToast(`✅ Đã hoàn thành ETL! ${data.valid_rows} dòng hợp lệ, ${data.error_rows} dòng lỗi.`);
   } catch (err) {
@@ -1349,8 +1363,320 @@ async function executeBenchmark(rows) {
     `;
 
     showToast(`✅ Hoàn thành đo hiệu năng DuckDB ${Number(rows).toLocaleString()} dòng!`);
+    DataGridManager.enhanceTable(document.getElementById('tableBenchmarkRun'));
   } catch (err) {
     console.error('Lỗi benchmark:', err);
     showToast('❌ Lỗi khi thực thi benchmark!');
   }
 }
+
+// =========================================================================
+// ENTERPRISE DATA GRID ENGINE: COLUMN FILTER & RIGHT-CLICK CONTEXT MENU
+// =========================================================================
+const DataGridManager = {
+  activeContextMenu: null,
+
+  init() {
+    this.enhanceAllTables();
+
+    // Lắng nghe đóng menu chuột phải khi click ra ngoài hoặc cuộn trang
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#gridContextMenu')) {
+        this.hideContextMenu();
+      }
+    });
+    window.addEventListener('scroll', () => this.hideContextMenu(), true);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') this.hideContextMenu();
+    });
+
+    this.ensureContextMenuElement();
+  },
+
+  ensureContextMenuElement() {
+    let menu = document.getElementById('gridContextMenu');
+    if (!menu) {
+      menu = document.createElement('div');
+      menu.id = 'gridContextMenu';
+      menu.className = 'grid-context-menu';
+      document.body.appendChild(menu);
+    }
+  },
+
+  enhanceAllTables() {
+    document.querySelectorAll('table.data-table').forEach(table => {
+      this.enhanceTable(table);
+    });
+  },
+
+  enhanceTable(table) {
+    if (!table) return;
+
+    const thead = table.querySelector('thead');
+    if (!thead) return;
+
+    const headerRow = thead.querySelector('tr:first-child');
+    if (!headerRow) return;
+
+    const ths = Array.from(headerRow.querySelectorAll('th'));
+    if (ths.length === 0) return;
+
+    // Kiểm tra xem đã có dòng filter-row chưa
+    let filterRow = thead.querySelector('.grid-filter-row');
+    if (!filterRow) {
+      filterRow = document.createElement('tr');
+      filterRow.className = 'grid-filter-row';
+
+      ths.forEach((th, colIdx) => {
+        const fth = document.createElement('th');
+        fth.style.padding = '3px 4px';
+        fth.style.background = 'var(--surface-2, #0F172A)';
+
+        const colText = th.textContent.trim().toLowerCase();
+        // Không tạo ô filter cho cột "#", "Thao tác", "Lộ trình", "Hạng"
+        if (colText === '#' || colText.includes('thao tác') || colText.includes('lộ trình') || colText === 'hạng') {
+          fth.innerHTML = `
+            <div style="height:24px;display:flex;align-items:center;justify-content:center">
+              <button class="btn-clear-table-filter" title="Xóa toàn bộ lọc của bảng này" onclick="DataGridManager.clearFilters(this)">✕ Xóa</button>
+            </div>
+          `;
+        } else {
+          const rawTitle = th.textContent.trim().replace(/[*•#]/g, '').trim();
+          const shortTitle = rawTitle.length > 14 ? rawTitle.substring(0, 12) + '..' : rawTitle;
+          fth.innerHTML = `
+            <div class="grid-filter-wrap">
+              <input type="text" class="grid-col-filter" placeholder="🔍 ${shortTitle}..." data-col-idx="${colIdx}" oninput="DataGridManager.onFilterInput(this)" />
+              <button class="grid-filter-clear-btn" onclick="DataGridManager.clearSingleFilter(this)">×</button>
+            </div>
+          `;
+        }
+        filterRow.appendChild(fth);
+      });
+
+      thead.appendChild(filterRow);
+    }
+
+    // Gắn sự kiện Chuột Phải (Context Menu) cho tbody
+    const tbody = table.querySelector('tbody');
+    if (tbody && !tbody.dataset.contextBound) {
+      tbody.dataset.contextBound = 'true';
+      tbody.addEventListener('contextmenu', (e) => {
+        const td = e.target.closest('td');
+        if (!td) return;
+
+        // Bỏ qua dòng trống không có dữ liệu
+        const tr = td.closest('tr');
+        if (tr && tr.cells.length === 1 && tr.cells[0].colSpan > 1) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const colIdx = td.cellIndex;
+        const th = ths[colIdx];
+        const colName = th ? th.textContent.trim() : 'Cột này';
+        const cellText = td.textContent.trim();
+
+        DataGridManager.showContextMenu(e.clientX, e.clientY, {
+          table,
+          tr,
+          td,
+          colIdx,
+          colName,
+          cellText
+        });
+      });
+    }
+
+    this.applyTableFilters(table);
+  },
+
+  onFilterInput(input) {
+    const table = input.closest('table');
+    if (!table) return;
+
+    const clearBtn = input.nextElementSibling;
+    if (clearBtn && clearBtn.classList.contains('grid-filter-clear-btn')) {
+      clearBtn.style.display = input.value.trim() ? 'block' : 'none';
+    }
+
+    this.applyTableFilters(table);
+  },
+
+  clearSingleFilter(btn) {
+    const wrap = btn.closest('.grid-filter-wrap');
+    if (!wrap) return;
+    const input = wrap.querySelector('input');
+    if (input) {
+      input.value = '';
+      btn.style.display = 'none';
+      const table = btn.closest('table');
+      if (table) this.applyTableFilters(table);
+    }
+  },
+
+  clearFilters(target) {
+    const table = target.closest('table');
+    if (!table) return;
+
+    table.querySelectorAll('.grid-col-filter').forEach(inp => {
+      inp.value = '';
+      const clearBtn = inp.nextElementSibling;
+      if (clearBtn && clearBtn.classList.contains('grid-filter-clear-btn')) {
+        clearBtn.style.display = 'none';
+      }
+    });
+
+    this.applyTableFilters(table);
+    showToast('🧹 Đã xóa toàn bộ bộ lọc của bảng');
+  },
+
+  applyTableFilters(table) {
+    if (!table) return;
+    const filterInputs = Array.from(table.querySelectorAll('.grid-col-filter'));
+    const activeFilters = filterInputs
+      .map(inp => ({
+        colIdx: parseInt(inp.dataset.colIdx, 10),
+        query: inp.value.trim().toLowerCase()
+      }))
+      .filter(f => f.query !== '');
+
+    const tbody = table.querySelector('tbody');
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    let matchCount = 0;
+
+    rows.forEach(row => {
+      if (row.cells.length === 1 && row.cells[0].colSpan > 1) return;
+
+      let isMatch = true;
+      for (const filter of activeFilters) {
+        const cell = row.cells[filter.colIdx];
+        if (!cell) {
+          isMatch = false;
+          break;
+        }
+        const cellText = cell.textContent.trim().toLowerCase();
+        if (!cellText.includes(filter.query)) {
+          isMatch = false;
+          break;
+        }
+      }
+
+      row.style.display = isMatch ? '' : 'none';
+      if (isMatch) matchCount++;
+    });
+  },
+
+  showContextMenu(x, y, context) {
+    const menu = document.getElementById('gridContextMenu');
+    if (!menu) return;
+
+    const { table, td, colIdx, colName, cellText } = context;
+    const cleanCellText = cellText.replace(/\s+/g, ' ').trim();
+    const shortText = cleanCellText.length > 20 ? cleanCellText.substring(0, 18) + '...' : cleanCellText;
+
+    const tr = td.closest('tr');
+    const containerNo = tr ? (tr.cells[0]?.textContent.trim() || '') : '';
+    const isContainer = /^[A-Z]{4}\d{6,7}$/i.test(cleanCellText) || /^[A-Z]{4}\d{6,7}$/i.test(containerNo);
+    const resolvedContNo = /^[A-Z]{4}\d{6,7}$/i.test(cleanCellText) ? cleanCellText : containerNo;
+
+    const isBlock = /^B0\d$/i.test(cleanCellText) || /^B\d$/i.test(cleanCellText) || /^YA0\d$/i.test(cleanCellText);
+    const resolvedBlock = isBlock ? cleanCellText : '';
+
+    let html = `
+      <div class="context-menu-header">
+        <span class="context-col-tag">${colName}</span>
+        <strong class="context-cell-val">${shortText || '(Trống)'}</strong>
+      </div>
+      <div class="context-menu-divider"></div>
+      
+      <button class="context-menu-item" onclick="DataGridManager.filterByValue('${table.id}', ${colIdx}, '${encodeURIComponent(cleanCellText)}')">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <span>🔍 Lọc cột này chứa <strong>"${shortText}"</strong></span>
+      </button>
+
+      <button class="context-menu-item" onclick="DataGridManager.copyToClipboard('${encodeURIComponent(cleanCellText)}')">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        <span>📋 Sao chép giá trị ô</span>
+      </button>
+    `;
+
+    if (isContainer && resolvedContNo) {
+      html += `
+        <button class="context-menu-item highlight" onclick="searchContainerHistory('${resolvedContNo}');switchView('container');DataGridManager.hideContextMenu()">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <span>📍 Truy vết lộ trình <strong>${resolvedContNo}</strong></span>
+        </button>
+      `;
+    }
+
+    if (isBlock && resolvedBlock) {
+      html += `
+        <button class="context-menu-item highlight" onclick="drillDownToBlock('${resolvedBlock}', '${resolvedBlock}');DataGridManager.hideContextMenu()">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon></svg>
+          <span>📦 Lọc container tại <strong>${resolvedBlock}</strong></span>
+        </button>
+      `;
+    }
+
+    html += `
+      <div class="context-menu-divider"></div>
+      <button class="context-menu-item" onclick="DataGridManager.clearFilters(document.getElementById('${table.id}'));DataGridManager.hideContextMenu()">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        <span>🧹 Xóa tất cả bộ lọc của bảng này</span>
+      </button>
+    `;
+
+    menu.innerHTML = html;
+    menu.style.display = 'block';
+
+    const menuRect = menu.getBoundingClientRect();
+    const winW = window.innerWidth;
+    const winH = window.innerHeight;
+
+    let posX = x;
+    let posY = y;
+
+    if (x + menuRect.width > winW - 10) posX = winW - menuRect.width - 10;
+    if (y + menuRect.height > winH - 10) posY = winH - menuRect.height - 10;
+
+    menu.style.left = `${posX}px`;
+    menu.style.top = `${posY}px`;
+    this.activeContextMenu = menu;
+  },
+
+  hideContextMenu() {
+    const menu = document.getElementById('gridContextMenu');
+    if (menu) menu.style.display = 'none';
+    this.activeContextMenu = null;
+  },
+
+  filterByValue(tableId, colIdx, encodedVal) {
+    const val = decodeURIComponent(encodedVal).trim();
+    const table = document.getElementById(tableId);
+    if (!table) return;
+
+    const inp = table.querySelector(`.grid-col-filter[data-col-idx="${colIdx}"]`);
+    if (inp) {
+      inp.value = val;
+      const clearBtn = inp.nextElementSibling;
+      if (clearBtn && clearBtn.classList.contains('grid-filter-clear-btn')) {
+        clearBtn.style.display = 'block';
+      }
+      this.applyTableFilters(table);
+      showToast(`🔍 Đang lọc cột theo giá trị: "${val}"`);
+    }
+    this.hideContextMenu();
+  },
+
+  copyToClipboard(encodedVal) {
+    const val = decodeURIComponent(encodedVal);
+    navigator.clipboard.writeText(val).then(() => {
+      showToast(`📋 Đã sao chép: "${val}"`);
+    }).catch(() => {
+      showToast('❌ Không thể sao chép vào clipboard');
+    });
+    this.hideContextMenu();
+  }
+};
