@@ -16,6 +16,32 @@ const AppState = {
 };
 
 // =========================================================================
+// MAPPING 8 BLOCK PHÂN KHU B (TERMINAL B - CÁT LÁI)
+// =========================================================================
+const BLOCK_INFO_MAP = {
+  'YA01': { code: 'B01', name: 'Hàng Xuất Dãy 1', full: 'Block B01 - Hàng Xuất Dãy 1' },
+  'YA02': { code: 'B02', name: 'Hàng Xuất Dãy 2', full: 'Block B02 - Hàng Xuất Dãy 2' },
+  'YA03': { code: 'B03', name: 'Bãi Reefer Lạnh', full: 'Block B03 - Bãi Reefer Lạnh' },
+  'YA04': { code: 'B04', name: 'Cont Tuyến Á-Âu', full: 'Block B04 - Cont Tuyến Á-Âu' },
+  'YA05': { code: 'B05', name: 'Cont Tuyến Nội Địa', full: 'Block B05 - Cont Tuyến Nội Địa' },
+  'YA06': { code: 'B06', name: 'Bãi Chuyển Tải', full: 'Block B06 - Bãi Chuyển Tải' },
+  'YA07': { code: 'B07', name: 'Bãi Hàng DG/OOG', full: 'Block B07 - Bãi Hàng DG/OOG' },
+  'YA08': { code: 'B08', name: 'Bãi Đệm Cổng B', full: 'Block B08 - Bãi Đệm Cổng B' },
+};
+
+function getBlockCode(yardCode) {
+  if (!yardCode) return '-';
+  const k = String(yardCode).trim().toUpperCase();
+  return BLOCK_INFO_MAP[k] ? BLOCK_INFO_MAP[k].code : yardCode;
+}
+
+function getBlockName(yardCode) {
+  if (!yardCode) return '-';
+  const k = String(yardCode).trim().toUpperCase();
+  return BLOCK_INFO_MAP[k] ? BLOCK_INFO_MAP[k].name : yardCode;
+}
+
+// =========================================================================
 // TOAST NOTIFICATION
 // =========================================================================
 let toastTimer = null;
@@ -340,21 +366,25 @@ async function loadOverviewData() {
     // Overload alerts (Hiển thị trực quan mức lấp đầy & click chuyển sang Sơ đồ 2D)
     const alertList = document.getElementById('overviewOverloadList');
     if (data.overloaded_yards && data.overloaded_yards.length > 0) {
-      alertList.innerHTML = data.overloaded_yards.map(item => `
-        <div class="alert-item" style="cursor:pointer" onclick="switchView('yard')" title="Nhấn để xem chi tiết trên Sơ đồ 2D">
-          <div class="alert-dot ${item.ty_le_su_dung >= 95 ? 'red' : 'amber'}">!</div>
-          <div style="flex:1;min-width:0">
-            <div class="alert-title">
-              <span style="font-weight:750">${item.yard_code} - ${item.yard_name}</span>
-              <span class="pill ${item.ty_le_su_dung >= 95 ? 'pill-over' : 'pill-warn'}">${item.ty_le_su_dung >= 95 ? 'QUÁ TẢI' : 'CẢNH BÁO'} ${item.ty_le_su_dung}%</span>
-            </div>
-            <div class="alert-sub">Sức chứa: <strong>${item.suc_chua_da_su_dung}</strong> / ${item.suc_chua_toi_da} TEU</div>
-            <div style="background:var(--surface-2);height:4px;border-radius:2px;overflow:hidden;margin-top:4px">
-              <div style="background:${item.ty_le_su_dung >= 95 ? 'var(--red)' : 'var(--amber)'};height:100%;width:${Math.min(item.ty_le_su_dung, 100)}%"></div>
+      alertList.innerHTML = data.overloaded_yards.map(item => {
+        const bCode = getBlockCode(item.yard_code);
+        const bName = getBlockName(item.yard_code);
+        return `
+          <div class="alert-item" style="cursor:pointer" onclick="switchView('yard')" title="Nhấn để xem chi tiết trên Sơ đồ 2D">
+            <div class="alert-dot ${item.ty_le_su_dung >= 95 ? 'red' : 'amber'}">!</div>
+            <div style="flex:1;min-width:0">
+              <div class="alert-title">
+                <span style="font-weight:750">${bCode} - ${bName}</span>
+                <span class="pill ${item.ty_le_su_dung >= 95 ? 'pill-over' : 'pill-warn'}">${item.ty_le_su_dung >= 95 ? 'QUÁ TẢI' : 'CẢNH BÁO'} ${item.ty_le_su_dung}%</span>
+              </div>
+              <div class="alert-sub">Sức chứa: <strong>${item.suc_chua_da_su_dung}</strong> / ${item.suc_chua_toi_da} TEU</div>
+              <div style="background:var(--surface-2);height:4px;border-radius:2px;overflow:hidden;margin-top:4px">
+                <div style="background:${item.ty_le_su_dung >= 95 ? 'var(--red)' : 'var(--amber)'};height:100%;width:${Math.min(item.ty_le_su_dung, 100)}%"></div>
+              </div>
             </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     } else {
       alertList.innerHTML = '<div style="font-size:11px;color:var(--green);padding:8px">✅ Không có khu vực bãi nào bị quá tải!</div>';
     }
@@ -362,21 +392,24 @@ async function loadOverviewData() {
     // Upcoming alerts (Hiển thị thời gian lưu bãi & click truy vết lộ trình)
     const upcomingList = document.getElementById('overviewUpcomingList');
     if (data.upcoming_overdue && data.upcoming_overdue.length > 0) {
-      upcomingList.innerHTML = data.upcoming_overdue.map(item => `
-        <div class="alert-item" style="cursor:pointer" onclick="searchContainerHistory('${item.container_no}');switchView('container')" title="Nhấn để tra cứu lộ trình container">
-          <div class="alert-dot info">⏳</div>
-          <div style="flex:1;min-width:0">
-            <div class="alert-title">
-              <span style="color:var(--primary);font-weight:800">${item.container_no}</span>
-              <span style="font-size:10px;color:var(--amber);font-weight:800;background:rgba(245,158,11,0.12);padding:2px 6px;border-radius:4px">Còn ${item.remaining_days} ngày</span>
-            </div>
-            <div class="alert-sub">Bãi ${item.yard_code} • Hãng ${item.shipping_line_code} • Đã lưu ${item.dwell_days}/30 ngày</div>
-            <div style="background:var(--surface-2);height:4px;border-radius:2px;overflow:hidden;margin-top:4px">
-              <div style="background:var(--amber);height:100%;width:${Math.min((item.dwell_days / 30) * 100, 100)}%"></div>
+      upcomingList.innerHTML = data.upcoming_overdue.map(item => {
+        const bCode = getBlockCode(item.yard_code);
+        return `
+          <div class="alert-item" style="cursor:pointer" onclick="searchContainerHistory('${item.container_no}');switchView('container')" title="Nhấn để tra cứu lộ trình container">
+            <div class="alert-dot info">⏳</div>
+            <div style="flex:1;min-width:0">
+              <div class="alert-title">
+                <span style="color:var(--primary);font-weight:800">${item.container_no}</span>
+                <span style="font-size:10px;color:var(--amber);font-weight:800;background:rgba(245,158,11,0.12);padding:2px 6px;border-radius:4px">Còn ${item.remaining_days} ngày</span>
+              </div>
+              <div class="alert-sub"><span class="block-code-badge" style="padding:1px 5px;font-size:10px">${bCode}</span> • Hãng <strong>${item.shipping_line_code}</strong> • Đã lưu <strong>${item.dwell_days}/30</strong> ngày</div>
+              <div style="background:var(--surface-2);height:4px;border-radius:2px;overflow:hidden;margin-top:4px">
+                <div style="background:var(--amber);height:100%;width:${Math.min((item.dwell_days / 30) * 100, 100)}%"></div>
+              </div>
             </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     } else {
       upcomingList.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:8px">Không có container nào sắp quá hạn.</div>';
     }
@@ -510,17 +543,26 @@ async function loadYardMatrix() {
       `;
     }).join('');
 
-    // 4. Render Bảng Chi Tiết 8 Block Khu B
-    tbody.innerHTML = cachedYardBlocks.map(b => `
-      <tr>
-        <td><strong style="color:var(--primary)">${b.block_code || b.yard_code}</strong></td>
-        <td><strong>${b.terminal_block_name || b.yard_name}</strong></td>
-        <td>${b.suc_chua_toi_da.toLocaleString()}</td>
-        <td><strong>${b.suc_chua_da_su_dung.toLocaleString()}</strong></td>
-        <td><strong>${b.ty_le_su_dung}%</strong></td>
-        <td><span class="yard-status-pill ${b.ty_le_su_dung >= 95 ? 'pill-over' : b.ty_le_su_dung >= 85 ? 'pill-warn' : 'pill-safe'}">${b.trang_thai_su_dung}</span></td>
-      </tr>
-    `).join('');
+    // 4. Render Bảng Chi Tiết 8 Block Khu B (Terminal B)
+    tbody.innerHTML = cachedYardBlocks.map(b => {
+      const bCode = b.block_code || getBlockCode(b.yard_code);
+      const bName = b.terminal_block_name || b.yard_name;
+      return `
+        <tr>
+          <td><span class="block-code-badge">${bCode}</span></td>
+          <td><strong style="color:var(--ink)">${bName}</strong></td>
+          <td>${b.suc_chua_toi_da.toLocaleString()} TEU</td>
+          <td><strong>${b.suc_chua_da_su_dung.toLocaleString()} TEU</strong></td>
+          <td><strong style="color:${b.ty_le_su_dung >= 95 ? 'var(--red)' : b.ty_le_su_dung >= 85 ? 'var(--amber)' : 'var(--primary)'}">${b.ty_le_su_dung}%</strong></td>
+          <td><span class="yard-status-pill ${b.ty_le_su_dung >= 95 ? 'pill-over' : b.ty_le_su_dung >= 85 ? 'pill-warn' : 'pill-safe'}">${b.trang_thai_su_dung}</span></td>
+          <td style="text-align:center">
+            <button class="btn-primary" style="padding:2px 8px;font-size:10.5px" onclick="drillDownToBlock('${b.yard_code}', '${bCode} - ${bName}')" title="Xem danh sách container tại ${bCode}">
+              Xem cont
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
 
   } catch (err) {
     console.error('Lỗi khi nạp yard matrix:', err);
@@ -1067,18 +1109,58 @@ async function loadContainerList(filterType) {
     }
 
     tbody.innerHTML = data.data.map(c => {
-      const displayYard = c.yard_name ? `${c.yard_name} (${c.yard_code || '-'})` : (c.yard_code || '-');
+      const bCode = getBlockCode(c.yard_code);
+      const isFull = (c.full_empty || 'F').toUpperCase().startsWith('F');
+      const dwellDays = Number(c.dwell_days || 0);
+
+      // Trạng thái màu sắc thời gian lưu bãi (Dwell Time)
+      let dwellClass = 'safe';
+      let dwellIcon = '✓';
+      if (dwellDays >= 30) {
+        dwellClass = 'danger';
+        dwellIcon = '🔥';
+      } else if (dwellDays >= 25) {
+        dwellClass = 'warning';
+        dwellIcon = '⏳';
+      }
+
+      // Quy cách ISO & Trạng thái hàng (Size • Type • F/E)
+      const specText = `${c.container_size || 20}' ${c.container_type || 'GP'}`;
+      const feBadge = `<span class="spec-fe ${isFull ? 'full' : 'empty'}">${isFull ? 'FULL' : 'EMPTY'}</span>`;
+
+      // Định dạng Ngày Vào (DD/MM/YYYY)
+      let dateFormatted = '-';
+      if (c.gate_in_ts) {
+        const d = new Date(c.gate_in_ts);
+        if (!isNaN(d.getTime())) {
+          dateFormatted = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        } else {
+          dateFormatted = c.gate_in_ts.substring(0, 10);
+        }
+      }
+
       return `
         <tr>
-          <td><strong style="color:var(--primary)">${c.container_no}</strong></td>
-          <td>${c.shipping_line_code || '-'}</td>
-          <td><span style="font-weight:750;color:#0284C7">${displayYard}</span></td>
-          <td>${c.container_size || 20}'</td>
-          <td>${c.container_type || 'GP'}</td>
-          <td><span class="badge ${c.full_empty === 'Full' ? 'badge-primary' : 'badge-secondary'}">${c.full_empty || 'F'}</span></td>
-          <td>${c.gate_in_ts ? c.gate_in_ts.substring(0, 10) : '-'}</td>
-          <td><strong style="color:${c.dwell_days >= 30 ? 'var(--red)' : c.dwell_days >= 25 ? 'var(--amber)' : 'var(--green)'}">${c.dwell_days} ngày</strong></td>
-          <td><button class="btn-primary" style="padding:3px 8px;font-size:10px" onclick="searchContainerHistory('${c.container_no}')">Xem lộ trình</button></td>
+          <td><strong style="font-family:monospace;font-size:12.5px;color:var(--primary)">${c.container_no}</strong></td>
+          <td><span class="block-code-badge">${bCode}</span></td>
+          <td><strong style="color:var(--ink)">${c.shipping_line_code || '-'}</strong></td>
+          <td>
+            <span class="dwell-pill ${dwellClass}" title="Đã lưu ${dwellDays} ngày trong bãi cảng">
+              ${dwellIcon} ${dwellDays} ngày
+            </span>
+          </td>
+          <td style="color:var(--ink-light);font-size:11.5px">${dateFormatted}</td>
+          <td>
+            <div class="cont-spec-tag">
+              <span>${specText}</span>
+              ${feBadge}
+            </div>
+          </td>
+          <td style="text-align:center">
+            <button class="btn-primary" style="padding:3px 9px;font-size:10px" onclick="searchContainerHistory('${c.container_no}')" title="Tra cứu lộ trình container">
+              Truy vết
+            </button>
+          </td>
         </tr>
       `;
     }).join('');

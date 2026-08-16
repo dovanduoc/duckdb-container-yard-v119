@@ -864,9 +864,90 @@ table.data-table td.down { color: var(--red); font-weight: 750; }
   gap: 4px;
 }
 
-.timeline-title { font-size: 12px; font-weight: 800; color: var(--ink); }
-.timeline-time { font-size: 10.5px; color: var(--muted); font-weight: 600; }
-.timeline-desc { font-size: 11px; color: var(--muted); }
+.timeline-title {
+  font-weight: 750;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.timeline-time {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.timeline-desc {
+  font-size: 11.5px;
+  color: var(--ink-light);
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   ROLE-BASED YARD OPERATOR UI COMPONENTS (BADGES & PILLS)
+   ========================================================================== */
+.block-code-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 850;
+  background: rgba(2, 132, 199, 0.15);
+  color: #38BDF8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+.cont-spec-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.cont-spec-tag .spec-fe {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.cont-spec-tag .spec-fe.full {
+  background: rgba(2, 132, 199, 0.15);
+  color: #0284C7;
+  border: 1px solid rgba(2, 132, 199, 0.3);
+}
+.cont-spec-tag .spec-fe.empty {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94A3B8;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.dwell-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.dwell-pill.danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.dwell-pill.warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #F59E0B;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.dwell-pill.safe {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
 
 /* Form Controls */
 .form-row {
