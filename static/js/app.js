@@ -1013,15 +1013,27 @@ async function loadContainerList(filterType) {
     const yardSelect = document.getElementById('containerYardFilterSelect');
     const yardCode = yardSelect ? yardSelect.value : '';
 
-    // Cập nhật thanh filter bar nếu có yardCode
+    // Cập nhật tiêu đề Card và thanh filter bar linh hoạt theo Block
+    const cardTitle = document.getElementById('containerCardTitle');
     const filterBar = document.getElementById('activeYardFilterBar');
     const filterText = document.getElementById('activeYardFilterText');
-    if (filterBar && filterText) {
-      if (yardCode) {
-        const selectedOpt = yardSelect.options[yardSelect.selectedIndex]?.text || yardCode;
+
+    if (yardCode) {
+      const selectedOpt = yardSelect.options[yardSelect.selectedIndex]?.text || yardCode;
+      const blockShortName = selectedOpt.split(' - ')[0].replace('🏗️ ', '').trim();
+      
+      if (cardTitle) {
+        cardTitle.textContent = `📦 Danh Sách Container trong ${blockShortName}`;
+      }
+      if (filterBar && filterText) {
         filterBar.style.display = 'flex';
         filterText.textContent = `📦 Đang lọc: ${selectedOpt}`;
-      } else {
+      }
+    } else {
+      if (cardTitle) {
+        cardTitle.textContent = '📦 Danh Sách Container toàn Bãi';
+      }
+      if (filterBar) {
         filterBar.style.display = 'none';
       }
     }
