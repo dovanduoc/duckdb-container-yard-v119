@@ -689,6 +689,78 @@ function renderCatLaiSvgMap(blocks) {
   });
 }
 
+// =========================================================================
+// INTERACTIVE PAN & ZOOM + SEMANTIC ZOOMING ENGINE CHO BẢN ĐỒ SỐ 160HA
+// =========================================================================
+const PanZoomState = {
+  scale: 1.0,
+  minScale: 0.6,
+  maxScale: 6.0,
+  x: 0,
+  y: 0,
+  isDragging: false,
+  startX: 0,
+  startY: 0,
+  dragDistance: 0
+};
+
+function applyMapTransform() {
+  const root = document.getElementById('mapPanZoomRoot');
+  const indicator = document.getElementById('panzoomScaleIndicator');
+  if (!root) return;
+
+  root.setAttribute('transform', `matrix(${PanZoomState.scale} 0 0 ${PanZoomState.scale} ${PanZoomState.x} ${PanZoomState.y})`);
+  
+  if (indicator) {
+    indicator.textContent = `${Math.round(PanZoomState.scale * 100)}%`;
+  }
+
+  // SEMANTIC ZOOMING:
+  // - Khi ở chế độ zoom nhỏ (< 1.35x): Ẩn nhãn chữ để nhìn toàn cảnh cảng 160ha thoáng đãng
+  // - Khi zoom lên (>= 1.35x): Hiện nhãn tên Block B01 - B08, đồng thời scale nghịch đảo để kích thước chữ luôn cố định sắc nét
+  const isZoomed = PanZoomState.scale >= 1.35;
+  const labels = document.querySelectorAll('.semantic-block-label');
+  const invScale = 1 / PanZoomState.scale;
+
+  labels.forEach(el => {
+    if (isZoomed) {
+      el.classList.add('visible');
+      const cx = el.dataset.cx || 0;
+      const cy = el.dataset.cy || 0;
+      el.setAttribute('transform', `translate(${cx}, ${cy}) scale(${invScale})`);
+    } else {
+      el.classList.remove('visible');
+    }
+  });
+}
+
+function zoomDigitalMap(factor) {
+  const dtContainer = document.getElementById('catlaiDigitalTwinContainer');
+  if (!dtContainer) return;
+
+  const rect = dtContainer.getBoundingClientRect();
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+
+  const newScale = Math.max(PanZoomState.minScale, Math.min(PanZoomState.maxScale, PanZoomState.scale * factor));
+  if (newScale === PanZoomState.scale) return;
+
+  // Điều chỉnh x, y để zoom hướng vào tâm khung nhìn
+  PanZoomState.x = centerX - (centerX - PanZoomState.x) * (newScale / PanZoomState.scale);
+  PanZoomState.y = centerY - (centerY - PanZoomState.y) * (newScale / PanZoomState.scale);
+  PanZoomState.scale = newScale;
+
+  applyMapTransform();
+}
+
+function resetDigitalMapZoom() {
+  PanZoomState.scale = 1.0;
+  PanZoomState.x = 0;
+  PanZoomState.y = 0;
+  applyMapTransform();
+  showToast('🔍 Đã đưa Bản Đồ Số về góc nhìn toàn cảnh mặc định 100%');
+}
+
 async function initDigitalTwinMap(blocks) {
   const dtContainer = document.getElementById('catlaiDigitalTwinContainer');
   const tooltip = document.getElementById('catlaiMapTooltip');
@@ -701,7 +773,51 @@ async function initDigitalTwinMap(blocks) {
       dtContainer.innerHTML = svgText;
       digitalTwinLoaded = true;
 
-      // Gắn sự kiện Hover & Click cho 8 Block bãi tương tác trên bản đồ số 160ha
+      // 1. TÍCH HỢP LĂN CHUỘT ZOOM ĐỘC LẬP BÊN TRONG KHUNG BẢN ĐỒ (KHÔNG ẢNH HƯỞNG TRANG WEB)
+      dtContainer.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const rect = dtContainer.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+        const newScale = Math.max(PanZoomState.minScale, Math.min(PanZoomState.maxScale, PanZoomState.scale * zoomFactor));
+
+        if (newScale !== PanZoomState.scale) {
+          PanZoomState.x = mouseX - (mouseX - PanZoomState.x) * (newScale / PanZoomState.scale);
+          PanZoomState.y = mouseY - (mouseY - PanZoomState.y) * (newScale / PanZoomState.scale);
+          PanZoomState.scale = newScale;
+          applyMapTransform();
+        }
+      }, { passive: false });
+
+      // 2. TÍCH HỢP KÉO THẢ DI CHUYỂN BẢN ĐỒ (PANNING)
+      dtContainer.addEventListener('mousedown', (e) => {
+        PanZoomState.isDragging = true;
+        PanZoomState.startX = e.clientX - PanZoomState.x;
+        PanZoomState.startY = e.clientY - PanZoomState.y;
+        PanZoomState.dragDistance = 0;
+        dtContainer.classList.add('is-dragging');
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!PanZoomState.isDragging) return;
+        const newX = e.clientX - PanZoomState.startX;
+        const newY = e.clientY - PanZoomState.startY;
+        PanZoomState.dragDistance += Math.hypot(newX - PanZoomState.x, newY - PanZoomState.y);
+        PanZoomState.x = newX;
+        PanZoomState.y = newY;
+        applyMapTransform();
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (PanZoomState.isDragging) {
+          PanZoomState.isDragging = false;
+          dtContainer.classList.remove('is-dragging');
+        }
+      });
+
+      // 3. GẮN SỰ KIỆN HOVER TOOLTIP & CLICK DRILL-DOWN CHO 8 BLOCK BÃI
       dtContainer.querySelectorAll('.digital-yard-block').forEach(el => {
         el.addEventListener('mouseenter', (e) => {
           const code = el.dataset.yardCode;
@@ -747,12 +863,17 @@ async function initDigitalTwinMap(blocks) {
         });
 
         el.addEventListener('click', async () => {
+          // Nếu người dùng vừa kéo Pan bản đồ thì không kích hoạt Drill-Down
+          if (PanZoomState.dragDistance > 6) return;
+
           const bCode = el.dataset.blockCode;
           const name = el.dataset.yardName;
           showToast(`📦 Đang xem danh sách container tại ${bCode} (${name})...`);
           await switchView('container');
         });
       });
+
+      applyMapTransform();
     } catch (err) {
       console.error('Lỗi khi nạp SVG Digital Twin:', err);
     }
@@ -812,6 +933,7 @@ function setYardMapMode(mode) {
   currentMapMode = mode;
   const svgMap = document.getElementById('catlaiSvgMap');
   const dtContainer = document.getElementById('catlaiDigitalTwinContainer');
+  const panzoomToolbar = document.getElementById('mapPanZoomToolbar');
   const title = document.getElementById('yardMapTitle');
   const btnToggle = document.getElementById('btnToggleYardMapMode');
   const iconMapMode = document.getElementById('iconMapMode');
@@ -819,7 +941,8 @@ function setYardMapMode(mode) {
   if (mode === 'digital-twin') {
     if (svgMap) svgMap.style.display = 'none';
     if (dtContainer) dtContainer.style.display = 'block';
-    if (title) title.innerText = '🗺️ Bản Đồ Số 160ha Cảng Cát Lái (SNP Digital Twin GIS) • Tương Tác 8 Block Khu B & Heatmap Realtime';
+    if (panzoomToolbar) panzoomToolbar.style.display = 'flex';
+    if (title) title.innerText = '🗺️ Bản Đồ Số 160ha Cảng Cát Lái (SNP Digital Twin GIS) • Lăn chuột/Kéo để Zoom & Pan độc lập';
     if (btnToggle) {
       btnToggle.title = 'Nhấn để chuyển sang Sơ Đồ Logic Phân Khu B';
       btnToggle.style.background = 'var(--primary)';
@@ -827,14 +950,15 @@ function setYardMapMode(mode) {
       btnToggle.style.borderColor = 'var(--primary)';
     }
     if (iconMapMode) {
-      // Đổi sang icon Grid Logic để người dùng bấm quay lại
       iconMapMode.innerHTML = '<rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect>';
     }
     updateDigitalTwinHeatmap(cachedYardBlocks);
-    showToast('🗺️ Đang hiển thị Bản Đồ Số GIS 160ha Cát Lái (Tương tác Heatmap 8 Block)');
+    applyMapTransform();
+    showToast('🗺️ Đang hiển thị Bản Đồ Số GIS 160ha (Lăn chuột để Zoom / Kéo chuột để Pan)');
   } else {
     if (svgMap) svgMap.style.display = 'block';
     if (dtContainer) dtContainer.style.display = 'none';
+    if (panzoomToolbar) panzoomToolbar.style.display = 'none';
     if (title) title.innerText = '⚓ Sơ Đồ Không Gian Mặt Bằng Phân Khu B (Terminal B - SNP Cát Lái) • 8 Block B1 - B8 Kết Nối Cổng B';
     if (btnToggle) {
       btnToggle.title = 'Nhấn để chuyển sang Bản Đồ Số Thực Địa 160ha';
@@ -843,7 +967,6 @@ function setYardMapMode(mode) {
       btnToggle.style.borderColor = 'var(--line)';
     }
     if (iconMapMode) {
-      // Đổi sang icon Map để người dùng bấm sang Bản đồ số
       iconMapMode.innerHTML = '<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line>';
     }
     showToast('📦 Đang hiển thị Sơ Đồ Điều Hành 8 Block Bãi Phân Khu B');

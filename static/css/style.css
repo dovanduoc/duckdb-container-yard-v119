@@ -925,6 +925,72 @@ table.data-table td.down { color: var(--red); font-weight: 750; }
   font-size: 11px;
 }
 
+/* ==========================================================================
+   PAN & ZOOM GIS TOOLBAR & DIGITAL TWIN CONTAINER
+   ========================================================================== */
+.catlai-digital-twin-container {
+  cursor: grab;
+  touch-action: none;
+  border-radius: 8px;
+  background: #071226;
+  border: 1px solid var(--line);
+}
+
+.catlai-digital-twin-container.is-dragging {
+  cursor: grabbing !important;
+}
+
+.map-panzoom-toolbar {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 8px;
+  padding: 3px 5px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.panzoom-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 0;
+  background: transparent;
+  color: #E2E8F0;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.15s ease;
+}
+
+.panzoom-btn:hover {
+  background: var(--primary, #0284C7);
+  color: #FFFFFF;
+  transform: scale(1.05);
+}
+
+.panzoom-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+}
+
+.panzoom-indicator {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #38BDF8;
+  padding: 0 6px;
+  min-width: 44px;
+  text-align: center;
+  user-select: none;
+}
+
 @media(max-width: 1200px) {
   .dashboard-grid { grid-template-columns: 1fr 1fr; }
   .kpis-section { grid-template-columns: repeat(2, 1fr); }

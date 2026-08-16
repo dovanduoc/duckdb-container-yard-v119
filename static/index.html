@@ -274,9 +274,24 @@
             <svg id="catlaiSvgMap" class="catlai-svg-map" viewBox="0 0 960 490" xmlns="http://www.w3.org/2000/svg">
               <!-- Render động SVG bởi JavaScript -->
             </svg>
-            <div id="catlaiDigitalTwinContainer" class="catlai-digital-twin-container" style="display:none;width:100%;min-height:520px;text-align:center">
+            <div id="catlaiDigitalTwinContainer" class="catlai-digital-twin-container" style="display:none;width:100%;min-height:540px;text-align:center;position:relative;overflow:hidden">
               <!-- Nhúng trực tiếp SVG Bản Đồ Số 160ha để tương tác Heatmap và Tooltip -->
             </div>
+            
+            <!-- Thanh Công Cụ Pan-Zoom Độc Lập Nội Bộ Bản Đồ Số -->
+            <div id="mapPanZoomToolbar" class="map-panzoom-toolbar" style="display:none">
+              <button class="panzoom-btn" onclick="zoomDigitalMap(1.25)" title="Phóng to bản đồ (+)">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              </button>
+              <div id="panzoomScaleIndicator" class="panzoom-indicator">100%</div>
+              <button class="panzoom-btn" onclick="zoomDigitalMap(0.8)" title="Thu nhỏ bản đồ (-)">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              </button>
+              <button class="panzoom-btn" onclick="resetDigitalMapZoom()" title="Về toàn cảnh mặc định 100% (Fit View)">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>
+              </button>
+            </div>
+
             <div id="catlaiMapTooltip" class="catlai-tooltip"></div>
           </div>
         </div>
