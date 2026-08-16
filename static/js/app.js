@@ -705,11 +705,13 @@ const PanZoomState = {
 };
 
 function applyMapTransform() {
-  const root = document.getElementById('mapPanZoomRoot');
+  const svg = document.getElementById('catlaiDigitalTwinSvg');
   const indicator = document.getElementById('panzoomScaleIndicator');
-  if (!root) return;
+  if (!svg) return;
 
-  root.setAttribute('transform', `matrix(${PanZoomState.scale} 0 0 ${PanZoomState.scale} ${PanZoomState.x} ${PanZoomState.y})`);
+  // Áp dụng CSS transform trực tiếp lên thẻ SVG để kéo thả 1:1 theo con trỏ chuột
+  svg.style.transformOrigin = 'center center';
+  svg.style.transform = `translate(${PanZoomState.x}px, ${PanZoomState.y}px) scale(${PanZoomState.scale})`;
   
   if (indicator) {
     indicator.textContent = `${Math.round(PanZoomState.scale * 100)}%`;
@@ -735,21 +737,9 @@ function applyMapTransform() {
 }
 
 function zoomDigitalMap(factor) {
-  const dtContainer = document.getElementById('catlaiDigitalTwinContainer');
-  if (!dtContainer) return;
-
-  const rect = dtContainer.getBoundingClientRect();
-  const centerX = rect.width / 2;
-  const centerY = rect.height / 2;
-
   const newScale = Math.max(PanZoomState.minScale, Math.min(PanZoomState.maxScale, PanZoomState.scale * factor));
   if (newScale === PanZoomState.scale) return;
-
-  // Điều chỉnh x, y để zoom hướng vào tâm khung nhìn
-  PanZoomState.x = centerX - (centerX - PanZoomState.x) * (newScale / PanZoomState.scale);
-  PanZoomState.y = centerY - (centerY - PanZoomState.y) * (newScale / PanZoomState.scale);
   PanZoomState.scale = newScale;
-
   applyMapTransform();
 }
 
@@ -775,24 +765,22 @@ async function initDigitalTwinMap(blocks) {
 
       // 1. TÍCH HỢP LĂN CHUỘT ZOOM ĐỘC LẬP BÊN TRONG KHUNG BẢN ĐỒ (KHÔNG ẢNH HƯỞNG TRANG WEB)
       dtContainer.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const rect = dtContainer.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
+        e.preventDefault(); // Chặn triệt để cuộn trang web
+        e.stopPropagation();
 
         const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
         const newScale = Math.max(PanZoomState.minScale, Math.min(PanZoomState.maxScale, PanZoomState.scale * zoomFactor));
 
         if (newScale !== PanZoomState.scale) {
-          PanZoomState.x = mouseX - (mouseX - PanZoomState.x) * (newScale / PanZoomState.scale);
-          PanZoomState.y = mouseY - (mouseY - PanZoomState.y) * (newScale / PanZoomState.scale);
           PanZoomState.scale = newScale;
           applyMapTransform();
         }
       }, { passive: false });
 
-      // 2. TÍCH HỢP KÉO THẢ DI CHUYỂN BẢN ĐỒ (PANNING)
+      // 2. TÍCH HỢP GIỮ CHUỘT ĐỂ KÉO DI CHUYỂN BẢN ĐỒ (PANNING DRAG & DROP)
       dtContainer.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return; // Chỉ nhận chuột trái
+        e.preventDefault(); // Chặn bôi đen text / cuộn màn hình mặc định
         PanZoomState.isDragging = true;
         PanZoomState.startX = e.clientX - PanZoomState.x;
         PanZoomState.startY = e.clientY - PanZoomState.y;
@@ -802,6 +790,7 @@ async function initDigitalTwinMap(blocks) {
 
       window.addEventListener('mousemove', (e) => {
         if (!PanZoomState.isDragging) return;
+        e.preventDefault();
         const newX = e.clientX - PanZoomState.startX;
         const newY = e.clientY - PanZoomState.startY;
         PanZoomState.dragDistance += Math.hypot(newX - PanZoomState.x, newY - PanZoomState.y);

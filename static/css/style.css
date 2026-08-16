@@ -930,14 +930,31 @@ table.data-table td.down { color: var(--red); font-weight: 750; }
    ========================================================================== */
 .catlai-digital-twin-container {
   cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
   touch-action: none;
   border-radius: 8px;
   background: #071226;
   border: 1px solid var(--line);
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  height: 560px;
+  max-height: 560px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .catlai-digital-twin-container.is-dragging {
   cursor: grabbing !important;
+}
+
+.catlai-digital-twin-container svg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  will-change: transform;
 }
 
 .map-panzoom-toolbar {
