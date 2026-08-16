@@ -54,6 +54,12 @@ def serve_index():
     return FileResponse(str(STATIC_DIR / "index.html"))
 
 
+@app.get("/favicon.ico")
+def serve_favicon():
+    """Phục vụ biểu tượng Favicon của website."""
+    return FileResponse(str(STATIC_DIR / "favicon.svg"))
+
+
 def find_free_port(start_port=8000, max_tries=30):
     """Tự động tìm cổng còn trống để khởi chạy máy chủ."""
     for port in range(start_port, start_port + max_tries):
