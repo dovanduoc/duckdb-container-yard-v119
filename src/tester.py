@@ -50,7 +50,8 @@ from src.api.routes import (
     get_single_container_history,
     get_yard_trend_data,
     get_full_rankings,
-    execute_benchmark
+    execute_benchmark,
+    export_containers_csv
 )
 
 
@@ -104,7 +105,7 @@ def run_all_tests():
     check("EDGE-03", "Xuất file Parquet & CSV lỗi từ kết quả phân loại", lambda: write_etl_outputs(*classify_container_csv(resolve_etl_csv_path("demo", None))[3:5]))
     check("EDGE-04", "Thống kê cơ cấu lỗi vi phạm quy tắc", lambda: get_etl_error_breakdown())
 
-    print("\n--- NHÓM 3: KIỂM THỬ RESTFUL API ENDPOINTS FASTAPI (8 TESTS) ---")
+    print("\n--- NHÓM 3: KIỂM THỬ RESTFUL API ENDPOINTS FASTAPI (9 TESTS) ---")
     check("API-01", "GET /api/meta (System metadata)", lambda: get_system_metadata())
     check("API-02", f"GET /api/overview?date={valid_test_date}", lambda: get_dashboard_overview(valid_test_date))
     check("API-03", f"GET /api/yard-matrix?date={valid_test_date}", lambda: get_yard_heatmap_matrix(valid_test_date))
@@ -113,6 +114,7 @@ def run_all_tests():
     check("API-06", "GET /api/trend (Chuỗi thời gian bãi A)", lambda: get_yard_trend_data(1, min_test_date, valid_test_date))
     check("API-07", "GET /api/rankings (Top Hãng tàu & Loại cont)", lambda: get_full_rankings(valid_test_date))
     check("API-08", "GET /api/benchmark/run?rows=1000", lambda: execute_benchmark(1000))
+    check("API-09", "GET /api/containers/export (Xuất file CSV/Excel UTF-8 BOM)", lambda: export_containers_csv(valid_test_date, "upcoming", 30, 5))
 
     print("\n--- NHÓM 4: KIỂM THỬ AS-OF-DATE TIME-SLICE & BOUNDARIES (6 TESTS) ---")
     con = get_connection()

@@ -210,6 +210,9 @@
           <article class="card">
             <div class="card-head">
               <div class="card-title" style="color:var(--red)"><span class="mini-badge-icon red">!</span>Cảnh Báo Quá Tải (&ge;95%)</div>
+              <button class="btn-toggle-view" onclick="switchView('yard')" title="Xem trực quan trên Sơ đồ Mặt bằng 2D">
+                <span>Sơ đồ 2D</span> ➔
+              </button>
             </div>
             <div class="alert-list" id="overviewOverloadList">
               <div style="font-size:11px;color:var(--muted);padding:8px">Đang quét khu vực bãi...</div>
@@ -219,9 +222,21 @@
           <article class="card">
             <div class="card-head">
               <div class="card-title" style="color:var(--amber)"><span class="mini-badge-icon amber">⏳</span>Sắp Quá Hạn Lưu Bãi</div>
+              <div style="display:flex;gap:6px">
+                <button class="btn-toggle-view" id="exportUpcomingTopBtn" title="Tải file Excel/CSV danh sách sắp quá hạn">
+                  <span>📥 Xuất Excel</span>
+                </button>
+                <button class="btn-toggle-view" id="viewAllUpcomingTopBtn" title="Xem danh sách chi tiết trên màn hình Container">
+                  <span>Xem tất cả</span> ➔
+                </button>
+              </div>
             </div>
             <div class="alert-list" id="overviewUpcomingList">
               <div style="font-size:11px;color:var(--muted);padding:8px">Đang quét container...</div>
+            </div>
+            <div class="table-footer-action" style="display:flex;justify-content:space-between;align-items:center">
+              <button class="link-btn" id="exportUpcomingBottomBtn">📥 Xuất file Excel/CSV</button>
+              <button class="link-btn" id="viewAllUpcomingBottomBtn" style="color:var(--amber)">Tra cứu chi tiết ➔</button>
             </div>
           </article>
         </div>
@@ -269,12 +284,15 @@
         <article class="card">
           <div class="card-head">
             <div class="card-title">📦 Danh Sách Container Trong Bãi</div>
-            <div class="form-row" style="margin:0">
+            <div class="form-row" style="margin:0;gap:8px">
               <select class="form-control" id="containerFilterSelect">
                 <option value="current">Đang tồn bãi (Hist = N)</option>
                 <option value="overdue">Tồn bãi quá hạn (&ge;30 ngày)</option>
                 <option value="upcoming">Sắp quá hạn (còn &le;5 ngày)</option>
               </select>
+              <button class="btn-primary" id="exportContainerBtn" style="padding:6px 12px;font-size:11px;white-space:nowrap" title="Xuất toàn bộ danh sách sang Excel/CSV">
+                📥 Xuất Excel/CSV
+              </button>
             </div>
           </div>
           <div class="table-wrap">

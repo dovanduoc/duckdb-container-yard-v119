@@ -130,6 +130,40 @@ function setupEventListeners() {
     await loadContainerList(e.target.value);
   });
 
+  // Xuất file CSV / Excel danh sách sắp quá hạn từ Dashboard
+  const triggerExportUpcoming = () => {
+    showToast('📥 Đang xuất danh sách container sắp quá hạn...');
+    window.location.href = `/api/containers/export?date=${AppState.analysisDate}&filter_type=upcoming`;
+  };
+  const expUpTop = document.getElementById('exportUpcomingTopBtn');
+  const expUpBottom = document.getElementById('exportUpcomingBottomBtn');
+  if (expUpTop) expUpTop.addEventListener('click', triggerExportUpcoming);
+  if (expUpBottom) expUpBottom.addEventListener('click', triggerExportUpcoming);
+
+  // Xem toàn bộ danh sách sắp quá hạn trên màn hình Container
+  const triggerViewAllUpcoming = async () => {
+    switchView('container');
+    const filterSelect = document.getElementById('containerFilterSelect');
+    if (filterSelect) {
+      filterSelect.value = 'upcoming';
+      await loadContainerList('upcoming');
+    }
+  };
+  const viewUpTop = document.getElementById('viewAllUpcomingTopBtn');
+  const viewUpBottom = document.getElementById('viewAllUpcomingBottomBtn');
+  if (viewUpTop) viewUpTop.addEventListener('click', triggerViewAllUpcoming);
+  if (viewUpBottom) viewUpBottom.addEventListener('click', triggerViewAllUpcoming);
+
+  // Xuất CSV / Excel từ màn hình Container
+  const expContBtn = document.getElementById('exportContainerBtn');
+  if (expContBtn) {
+    expContBtn.addEventListener('click', () => {
+      const filterType = document.getElementById('containerFilterSelect').value || 'current';
+      showToast(`📥 Đang xuất dữ liệu container (${filterType})...`);
+      window.location.href = `/api/containers/export?date=${AppState.analysisDate}&filter_type=${filterType}`;
+    });
+  }
+
   // Search Container
   document.getElementById('searchContBtn').addEventListener('click', async () => {
     const no = document.getElementById('searchContInput').value.trim();
@@ -265,18 +299,21 @@ async function loadOverviewData() {
     renderOverviewShippingTable();
     renderOverviewTypeTable();
 
-    // Overload alerts
+    // Overload alerts (Hiển thị trực quan mức lấp đầy & click chuyển sang Sơ đồ 2D)
     const alertList = document.getElementById('overviewOverloadList');
     if (data.overloaded_yards && data.overloaded_yards.length > 0) {
       alertList.innerHTML = data.overloaded_yards.map(item => `
-        <div class="alert-item">
-          <div class="alert-dot">!</div>
-          <div>
+        <div class="alert-item" style="cursor:pointer" onclick="switchView('yard')" title="Nhấn để xem chi tiết trên Sơ đồ 2D">
+          <div class="alert-dot ${item.ty_le_su_dung >= 95 ? 'red' : 'amber'}">!</div>
+          <div style="flex:1;min-width:0">
             <div class="alert-title">
-              <span>${item.yard_code} - ${item.yard_name}</span>
-              <span class="pill">Quá tải ${item.ty_le_su_dung}%</span>
+              <span style="font-weight:750">${item.yard_code} - ${item.yard_name}</span>
+              <span class="pill ${item.ty_le_su_dung >= 95 ? 'pill-over' : 'pill-warn'}">${item.ty_le_su_dung >= 95 ? 'QUÁ TẢI' : 'CẢNH BÁO'} ${item.ty_le_su_dung}%</span>
             </div>
-            <div class="alert-sub">Sức chứa: ${item.suc_chua_toi_da} TEU • Hiện tại: ${item.suc_chua_da_su_dung} TEU</div>
+            <div class="alert-sub">Sức chứa: <strong>${item.suc_chua_da_su_dung}</strong> / ${item.suc_chua_toi_da} TEU</div>
+            <div style="background:var(--surface-2);height:4px;border-radius:2px;overflow:hidden;margin-top:4px">
+              <div style="background:${item.ty_le_su_dung >= 95 ? 'var(--red)' : 'var(--amber)'};height:100%;width:${Math.min(item.ty_le_su_dung, 100)}%"></div>
+            </div>
           </div>
         </div>
       `).join('');
@@ -284,18 +321,21 @@ async function loadOverviewData() {
       alertList.innerHTML = '<div style="font-size:11px;color:var(--green);padding:8px">✅ Không có khu vực bãi nào bị quá tải!</div>';
     }
 
-    // Upcoming alerts
+    // Upcoming alerts (Hiển thị thời gian lưu bãi & click truy vết lộ trình)
     const upcomingList = document.getElementById('overviewUpcomingList');
     if (data.upcoming_overdue && data.upcoming_overdue.length > 0) {
       upcomingList.innerHTML = data.upcoming_overdue.map(item => `
-        <div class="alert-item">
+        <div class="alert-item" style="cursor:pointer" onclick="searchContainerHistory('${item.container_no}');switchView('container')" title="Nhấn để tra cứu lộ trình container">
           <div class="alert-dot info">⏳</div>
-          <div>
+          <div style="flex:1;min-width:0">
             <div class="alert-title">
-              <span style="color:var(--primary)">${item.container_no}</span>
-              <span style="font-size:9.5px;color:var(--amber);font-weight:750">Còn ${item.remaining_days} ngày</span>
+              <span style="color:var(--primary);font-weight:800">${item.container_no}</span>
+              <span style="font-size:10px;color:var(--amber);font-weight:800;background:rgba(245,158,11,0.12);padding:2px 6px;border-radius:4px">Còn ${item.remaining_days} ngày</span>
             </div>
-            <div class="alert-sub">Bãi ${item.yard_code} • Hãng ${item.shipping_line_code} • Đã lưu ${item.dwell_days} ngày</div>
+            <div class="alert-sub">Bãi ${item.yard_code} • Hãng ${item.shipping_line_code} • Đã lưu ${item.dwell_days}/30 ngày</div>
+            <div style="background:var(--surface-2);height:4px;border-radius:2px;overflow:hidden;margin-top:4px">
+              <div style="background:var(--amber);height:100%;width:${Math.min((item.dwell_days / 30) * 100, 100)}%"></div>
+            </div>
           </div>
         </div>
       `).join('');

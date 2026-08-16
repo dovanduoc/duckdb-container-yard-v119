@@ -6,7 +6,7 @@ from typing import Optional
 from pathlib import Path
 import tempfile
 import pandas as pd
-from fastapi import APIRouter, Query, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, Query, UploadFile, File, Form, HTTPException, Response
 
 from src.config import APP_CODE_VERSION, DATA_SOURCE_NAME
 from src.core.duckdb_engine import get_connection
@@ -150,6 +150,45 @@ def search_containers(
             "total_records": len(df),
             "data": df_to_clean_json(df)
         }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.get("/containers/export")
+def export_containers_csv(
+    date: Optional[str] = None,
+    filter_type: str = Query("upcoming", enum=["current", "overdue", "upcoming"]),
+    min_days: int = 30,
+    warning_days: int = 5
+):
+    """Xuất toàn bộ danh sách container (không giới hạn số lượng) ra file CSV kèm UTF-8 BOM chuẩn Microsoft Excel."""
+    try:
+        if filter_type == "current":
+            df = get_current_containers(limit=None, selected_date=date)
+            filename_suffix = "dang_ton"
+        elif filter_type == "overdue":
+            df = get_overdue_containers(min_days=min_days, limit=None, selected_date=date)
+            filename_suffix = f"qua_han_{min_days}ngay"
+        elif filter_type == "upcoming":
+            df = get_upcoming_overdue_containers(overdue_threshold_days=min_days, warning_days=warning_days, selected_date=date)
+            filename_suffix = f"sap_qua_han_con_{warning_days}ngay"
+        else:
+            df = get_current_containers(limit=None, selected_date=date)
+            filename_suffix = "containers"
+
+        selected_date_str = str(pd.to_datetime(date).date()) if date else "latest"
+        filename = f"danh_sach_container_{filename_suffix}_{selected_date_str}.csv"
+
+        # Thêm UTF-8 BOM (\ufeff) để Excel hiển thị tiếng Việt có dấu chuẩn 100%
+        csv_content = "\ufeff" + df.to_csv(index=False, encoding="utf-8")
+
+        return Response(
+            content=csv_content,
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
