@@ -295,12 +295,14 @@ button { color: inherit; }
   display: flex;
   align-items: center;
   gap: 12px;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .kpi-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow);
+  border-color: var(--primary);
 }
 
 .kpi-icon {

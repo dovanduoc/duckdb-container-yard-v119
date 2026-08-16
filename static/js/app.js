@@ -140,14 +140,10 @@ function setupEventListeners() {
   if (expUpTop) expUpTop.addEventListener('click', triggerExportUpcoming);
   if (expUpBottom) expUpBottom.addEventListener('click', triggerExportUpcoming);
 
-  // Xem toàn bộ danh sách sắp quá hạn trên màn hình Container
+  // Xem toàn bộ danh sách sắp quá hạn trên màn hình Container (Tự động chuyển ngữ cảnh & kích hoạt nạp dữ liệu)
   const triggerViewAllUpcoming = async () => {
-    switchView('container');
-    const filterSelect = document.getElementById('containerFilterSelect');
-    if (filterSelect) {
-      filterSelect.value = 'upcoming';
-      await loadContainerList('upcoming');
-    }
+    showToast('📦 Đang chuyển sang danh sách Container sắp quá hạn (còn ≤5 ngày)...');
+    await switchView('container', { filterType: 'upcoming' });
   };
   const viewUpTop = document.getElementById('viewAllUpcomingTopBtn');
   const viewUpBottom = document.getElementById('viewAllUpcomingBottomBtn');
@@ -196,12 +192,12 @@ function setupEventListeners() {
 }
 
 // =========================================================================
-// VIEW SWITCHER
+// VIEW SWITCHER WITH CONTEXT AUTO-PROPAGATION
 // =========================================================================
-function switchView(viewName) {
+async function switchView(viewName, params = {}) {
   AppState.currentView = viewName;
 
-  // Active classes
+  // Active classes trên Sidebar và Top Tabs Bar
   document.querySelectorAll('[data-view]').forEach(el => {
     el.classList.toggle('active', el.dataset.view === viewName);
   });
@@ -210,7 +206,31 @@ function switchView(viewName) {
     panel.classList.toggle('active', panel.id === `view-${viewName}`);
   });
 
-  refreshCurrentView();
+  // Tự động gán tham số ngữ cảnh trước khi nạp dữ liệu
+  if (viewName === 'container') {
+    if (params.filterType) {
+      const filterSelect = document.getElementById('containerFilterSelect');
+      if (filterSelect) {
+        filterSelect.value = params.filterType;
+      }
+    }
+    if (params.containerNo) {
+      const searchInput = document.getElementById('searchContInput');
+      if (searchInput) {
+        searchInput.value = params.containerNo;
+      }
+    }
+  } else if (viewName === 'trend') {
+    if (params.yardId) {
+      const trendSelect = document.getElementById('trendYardSelect');
+      if (trendSelect) {
+        trendSelect.value = params.yardId;
+      }
+    }
+  }
+
+  // Tự động nạp dữ liệu chính xác theo ngữ cảnh vừa chuyển
+  await refreshCurrentView();
 }
 
 async function refreshCurrentView() {
@@ -226,8 +246,10 @@ async function refreshCurrentView() {
       await loadYardMatrix();
       break;
     case 'container':
-      await loadContainerList(document.getElementById('containerFilterSelect').value);
-      await searchContainerHistory(document.getElementById('searchContInput').value.trim() || 'PILU0017000');
+      const currentFilter = document.getElementById('containerFilterSelect').value || 'current';
+      const currentSearch = document.getElementById('searchContInput').value.trim() || 'PILU0017000';
+      await loadContainerList(currentFilter);
+      await searchContainerHistory(currentSearch);
       break;
     case 'trend':
       await loadTrendData(document.getElementById('trendYardSelect').value);

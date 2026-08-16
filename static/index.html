@@ -88,41 +88,41 @@
       </div>
     </header>
 
-    <!-- KPI Summary Section (4 Cột trải đều 100% diện tích) -->
+    <!-- KPI Summary Section (4 Cột trải đều 100% diện tích, hỗ trợ click chuyển ngữ cảnh thông minh) -->
     <section class="kpis-section">
-      <article class="kpi-card">
+      <article class="kpi-card" onclick="switchView('container', { filterType: 'current' })" title="Nhấn để xem danh sách Container đang tồn bãi">
         <div class="kpi-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="8" width="16" height="11" rx="1"/><path d="M8 8V5h8v3M8 11v5M12 11v5M16 11v5"/></svg></div>
         <div class="kpi-body">
           <div class="kpi-label">Container Tồn Bãi</div>
           <div class="kpi-value-row"><span class="kpi-value" id="kpiContCount">-</span></div>
-          <div class="kpi-sub">Số container đang trong bãi</div>
+          <div class="kpi-sub">Số container đang trong bãi ➔</div>
         </div>
       </article>
 
-      <article class="kpi-card">
+      <article class="kpi-card" onclick="switchView('ranking')" title="Nhấn để xem Bảng xếp hạng Sản lượng TEU Hãng tàu & Loại container">
         <div class="kpi-icon cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v5M8 5h8M4 10h16v10H4zM8 13v4M12 13v4M16 13v4"/></svg></div>
         <div class="kpi-body">
           <div class="kpi-label">Tổng TEU Tồn Bãi</div>
           <div class="kpi-value-row"><span class="kpi-value" id="kpiTotalTeu">-</span></div>
-          <div class="kpi-sub">Quy đổi 20' / 40' / 45'</div>
+          <div class="kpi-sub">Quy đổi 20' / 40' / 45' ➔</div>
         </div>
       </article>
 
-      <article class="kpi-card">
+      <article class="kpi-card" onclick="switchView('container', { filterType: 'overdue' })" title="Nhấn để xem danh sách Container Quá hạn (&ge;30 Ngày)">
         <div class="kpi-icon violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 18l5-6 4 3 7-9M16 6h4v4"/></svg></div>
         <div class="kpi-body">
           <div class="kpi-label">Tồn Quá Hạn (&ge;30 Ngày)</div>
           <div class="kpi-value-row"><span class="kpi-value" id="kpiOverdueCount">-</span></div>
-          <div class="kpi-sub">TB: <span id="kpiAvgDwell">-</span> ngày lưu bãi</div>
+          <div class="kpi-sub">TB: <span id="kpiAvgDwell">-</span> ngày lưu bãi ➔</div>
         </div>
       </article>
 
-      <article class="kpi-card">
+      <article class="kpi-card" onclick="switchView('yard')" title="Nhấn để xem chi tiết trên Sơ Đồ Mặt Bằng Bãi Cảng 2D">
         <div class="kpi-icon orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4 21 20H3L12 4Z"/><path d="M12 9v5M12 17h.01"/></svg></div>
         <div class="kpi-body">
           <div class="kpi-label">Bãi Quá Tải (&ge;95%)</div>
           <div class="kpi-value-row"><span class="kpi-value" id="kpiOverloadedCount">-</span> <small style="font-size:11px;color:var(--muted)">khu</small></div>
-          <div class="kpi-sub">Cao nhất: <span id="kpiHighestYard">-</span></div>
+          <div class="kpi-sub">Cao nhất: <span id="kpiHighestYard">-</span> ➔</div>
         </div>
       </article>
     </section>
