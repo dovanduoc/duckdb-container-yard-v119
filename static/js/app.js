@@ -68,11 +68,35 @@ function setupEventListeners() {
     showToast('🔄 Đã cập nhật lại toàn bộ số liệu thời gian thực!');
   });
 
-  // Date Filter Change
-  document.getElementById('analysisDateInput').addEventListener('change', async (e) => {
-    AppState.analysisDate = e.target.value;
-    showToast(`📅 Đang tải dữ liệu ngày: ${AppState.analysisDate}`);
+  // Auto Refresh khi chọn hoặc thay đổi ngày phân tích (Tự động tải lại 100% không cần bấm Refresh)
+  let dateChangeTimer = null;
+  const handleDateChange = async (newDate) => {
+    if (!newDate) return;
+    AppState.analysisDate = newDate;
+
+    // Kích hoạt hiệu ứng quay icon refresh để phản hồi trực quan
+    const icon = document.getElementById('refreshIcon');
+    if (icon) {
+      icon.classList.remove('spin');
+      void icon.offsetWidth;
+      icon.classList.add('spin');
+    }
+
+    showToast(`📅 Tự động cập nhật số liệu ngày: ${newDate}`);
     await refreshCurrentView();
+  };
+
+  const dateInput = document.getElementById('analysisDateInput');
+  dateInput.addEventListener('change', async (e) => {
+    await handleDateChange(e.target.value);
+  });
+  dateInput.addEventListener('input', (e) => {
+    clearTimeout(dateChangeTimer);
+    dateChangeTimer = setTimeout(async () => {
+      if (e.target.value && e.target.value.length === 10) {
+        await handleDateChange(e.target.value);
+      }
+    }, 200);
   });
 
   // Container Filter
