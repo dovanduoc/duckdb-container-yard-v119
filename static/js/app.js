@@ -715,10 +715,19 @@ const PanZoomState = {
   dragDistance: 0
 };
 
-function applyMapTransform() {
+function applyMapTransform(smooth = false) {
   const svg = document.getElementById('catlaiDigitalTwinSvg');
   const indicator = document.getElementById('panzoomScaleIndicator');
   if (!svg) return;
+
+  if (smooth) {
+    svg.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)';
+    setTimeout(() => {
+      if (svg) svg.style.transition = 'none';
+    }, 420);
+  } else {
+    svg.style.transition = 'none';
+  }
 
   // Áp dụng CSS transform trực tiếp lên thẻ SVG để kéo thả 1:1 theo con trỏ chuột
   svg.style.transformOrigin = 'center center';
@@ -727,39 +736,44 @@ function applyMapTransform() {
   if (indicator) {
     indicator.textContent = `${Math.round(PanZoomState.scale * 100)}%`;
   }
-
-  // SEMANTIC ZOOMING:
-  // - Khi ở chế độ zoom nhỏ (< 1.35x): Ẩn nhãn chữ để nhìn toàn cảnh cảng 160ha thoáng đãng
-  // - Khi zoom lên (>= 1.35x): Hiện nhãn tên Block B01 - B08, đồng thời scale nghịch đảo để kích thước chữ luôn cố định sắc nét
-  const isZoomed = PanZoomState.scale >= 1.35;
-  const labels = document.querySelectorAll('.semantic-block-label');
-  const invScale = 1 / PanZoomState.scale;
-
-  labels.forEach(el => {
-    if (isZoomed) {
-      el.classList.add('visible');
-      const cx = el.dataset.cx || 0;
-      const cy = el.dataset.cy || 0;
-      el.setAttribute('transform', `translate(${cx}, ${cy}) scale(${invScale})`);
-    } else {
-      el.classList.remove('visible');
-    }
-  });
 }
 
 function zoomDigitalMap(factor) {
   const newScale = Math.max(PanZoomState.minScale, Math.min(PanZoomState.maxScale, PanZoomState.scale * factor));
   if (newScale === PanZoomState.scale) return;
   PanZoomState.scale = newScale;
-  applyMapTransform();
+  applyMapTransform(true);
 }
 
 function resetDigitalMapZoom() {
   PanZoomState.scale = 1.0;
   PanZoomState.x = 0;
   PanZoomState.y = 0;
-  applyMapTransform();
-  showToast('🔍 Đã đưa Bản Đồ Số về góc nhìn toàn cảnh mặc định 100%');
+  applyMapTransform(true);
+  showToast('⛶ Đã đưa Bản Đồ Số về góc nhìn toàn cảnh 160ha (Fit View 100%)');
+}
+
+function autoCenterYardBlocks() {
+  const dtContainer = document.getElementById('catlaiDigitalTwinContainer');
+  if (!dtContainer) return;
+
+  const rect = dtContainer.getBoundingClientRect();
+  const targetScale = 2.35;
+  
+  // Tọa độ centroid trung tâm của 8 block Khu B: (cx: 256, cy: 508)
+  // Tọa độ tâm viewBox SVG (800x827): (400, 413.5)
+  const svgH = 827;
+  const svgRatio = rect.height / svgH;
+  
+  const shiftX = (400 - 256) * svgRatio * targetScale;
+  const shiftY = (413.5 - 508) * svgRatio * targetScale;
+
+  PanZoomState.scale = targetScale;
+  PanZoomState.x = shiftX;
+  PanZoomState.y = shiftY;
+
+  applyMapTransform(true);
+  showToast('🎯 Auto Center: Đã tự động focus và căn giữa 8 Block Phân Khu B');
 }
 
 async function initDigitalTwinMap(blocks) {

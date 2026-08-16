@@ -959,23 +959,25 @@ table.data-table td.down { color: var(--red); font-weight: 750; }
 
 .map-panzoom-toolbar {
   position: absolute;
-  right: 18px;
-  bottom: 18px;
+  right: 16px;
+  bottom: 16px;
   z-index: 20;
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   background: rgba(15, 23, 42, 0.88);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(56, 189, 248, 0.35);
   border-radius: 8px;
-  padding: 3px 5px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  padding: 4px 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  user-select: none;
 }
 
 .panzoom-btn {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 6px;
   border: 0;
   background: transparent;
@@ -983,29 +985,41 @@ table.data-table td.down { color: var(--red); font-weight: 750; }
   cursor: pointer;
   display: grid;
   place-items: center;
-  transition: all 0.15s ease;
+  transition: all 0.18s ease;
 }
 
 .panzoom-btn:hover {
   background: var(--primary, #0284C7);
   color: #FFFFFF;
-  transform: scale(1.05);
+  transform: scale(1.06);
+}
+
+.panzoom-btn.btn-focus:hover {
+  background: #0284C7;
+  color: #38BDF8;
 }
 
 .panzoom-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   stroke: currentColor;
 }
 
 .panzoom-indicator {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 800;
   color: #38BDF8;
-  padding: 0 6px;
-  min-width: 44px;
+  padding: 0 4px;
+  min-width: 42px;
   text-align: center;
   user-select: none;
+}
+
+.panzoom-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.18);
+  margin: 0 2px;
 }
 
 @media(max-width: 1200px) {
