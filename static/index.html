@@ -249,20 +249,31 @@
     <section class="view-panel" id="view-yard">
       <!-- Sơ đồ Mặt bằng Cát Lái 2D Interactive Vector SVG -->
       <article class="card">
-        <div class="card-head">
-          <div class="card-title">⚓ Sơ Đồ Không Gian Mặt Bằng Phân Khu B (Terminal B - SNP Cát Lái) • 8 Block B1 - B8 Kết Nối Cổng B</div>
-          <div style="display:flex;align-items:center;gap:14px;font-size:11px;font-weight:700">
-            <span style="color:#047857">● An toàn (&lt;70%)</span>
-            <span style="color:#0369A1">● Mức cao (70-84%)</span>
-            <span style="color:#B45309">● Cảnh báo (85-94%)</span>
-            <span style="color:#B91C1C">● Quá tải (&ge;95%)</span>
+        <div class="card-head" style="flex-wrap:wrap;gap:10px">
+          <div class="card-title" id="yardMapTitle">⚓ Sơ Đồ Không Gian Mặt Bằng Phân Khu B (Terminal B - SNP Cát Lái)</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <!-- Nút Chuyển Đổi Chế Độ Bản Đồ -->
+            <div class="btn-group" style="display:flex;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px">
+              <button id="btnModeTerminalB" class="btn btn-primary btn-sm" onclick="setYardMapMode('terminal-b')" style="padding:4px 10px;font-size:11px;font-weight:700">📦 Phân Khu B (8 Blocks)</button>
+              <button id="btnModeDigitalTwin" class="btn btn-secondary btn-sm" onclick="setYardMapMode('digital-twin')" style="padding:4px 10px;font-size:11px;font-weight:700">🗺️ Bản Đồ Số Cát Lái 160ha</button>
+            </div>
+            <!-- Chú thích màu sắc Heatmap -->
+            <div id="yardHeatmapLegend" style="display:flex;align-items:center;gap:12px;font-size:11px;font-weight:700">
+              <span style="color:#047857">● An toàn (&lt;70%)</span>
+              <span style="color:#0369A1">● Mức cao (70-84%)</span>
+              <span style="color:#B45309">● Cảnh báo (85-94%)</span>
+              <span style="color:#B91C1C">● Quá tải (&ge;95%)</span>
+            </div>
           </div>
         </div>
         <div class="card-body" style="padding:10px 14px">
-          <div class="catlai-map-wrapper">
+          <div class="catlai-map-wrapper" id="catlaiMapWrapper">
             <svg id="catlaiSvgMap" class="catlai-svg-map" viewBox="0 0 960 490" xmlns="http://www.w3.org/2000/svg">
               <!-- Render động SVG bởi JavaScript -->
             </svg>
+            <div id="catlaiDigitalTwinFrame" style="display:none;width:100%;text-align:center">
+              <img src="/static/img/catlaiport_map_styled.svg" alt="Bản Đồ Số Cảng Cát Lái 160ha" style="width:100%;max-height:750px;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.15);object-fit:contain" />
+            </div>
             <div id="catlaiMapTooltip" class="catlai-tooltip"></div>
           </div>
         </div>

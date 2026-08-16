@@ -747,6 +747,33 @@ function renderCatLaiSvgMap(blocks) {
   });
 }
 
+function setYardMapMode(mode) {
+  const svgMap = document.getElementById('catlaiSvgMap');
+  const dtFrame = document.getElementById('catlaiDigitalTwinFrame');
+  const legend = document.getElementById('yardHeatmapLegend');
+  const title = document.getElementById('yardMapTitle');
+  const btnB = document.getElementById('btnModeTerminalB');
+  const btnDT = document.getElementById('btnModeDigitalTwin');
+
+  if (mode === 'digital-twin') {
+    if (svgMap) svgMap.style.display = 'none';
+    if (dtFrame) dtFrame.style.display = 'block';
+    if (legend) legend.style.display = 'none';
+    if (title) title.innerText = '🗺️ Bản Đồ Số Không Gian 160 Hecta Cảng Tân Cảng - Cát Lái (SNP Digital Twin GIS Map)';
+    if (btnB) { btnB.className = 'btn btn-secondary btn-sm'; }
+    if (btnDT) { btnDT.className = 'btn btn-primary btn-sm'; }
+    showToast('🗺️ Đang hiển thị Bản Đồ Số Toàn Cảnh 160 Hecta Cảng Cát Lái');
+  } else {
+    if (svgMap) svgMap.style.display = 'block';
+    if (dtFrame) dtFrame.style.display = 'none';
+    if (legend) legend.style.display = 'flex';
+    if (title) title.innerText = '⚓ Sơ Đồ Không Gian Mặt Bằng Phân Khu B (Terminal B - SNP Cát Lái) • 8 Block B1 - B8 Kết Nối Cổng B';
+    if (btnB) { btnB.className = 'btn btn-primary btn-sm'; }
+    if (btnDT) { btnDT.className = 'btn btn-secondary btn-sm'; }
+    showToast('📦 Đang hiển thị Sơ Đồ Điều Hành 8 Block Bãi Phân Khu B');
+  }
+}
+
 async function loadContainerList(filterType) {
   try {
     const res = await fetch(`/api/containers?date=${AppState.analysisDate}&filter_type=${filterType}&limit=40`);
