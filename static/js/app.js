@@ -769,8 +769,6 @@ function updateDigitalTwinHeatmap(blocks) {
     const code = b.yard_code;
     const util = b.ty_le_su_dung;
     const pathEl = dtContainer.querySelector(`#digital-block-${code}`);
-    const badgeTxtEl = dtContainer.querySelector(`#badge-txt-${code}`);
-    const badgeGroupEl = dtContainer.querySelector(`#badge-${code}`);
 
     if (pathEl) {
       pathEl.dataset.util = util;
@@ -791,26 +789,13 @@ function updateDigitalTwinHeatmap(blocks) {
       } else if (util >= 70) {
         pathEl.style.fill = '#0284C7';
         pathEl.style.stroke = '#38BDF8';
-        pathEl.style.fillOpacity = '0.8';
+        pathEl.style.fillOpacity = '0.75';
         pathEl.classList.remove('pulse');
       } else {
         pathEl.style.fill = '#10B981';
         pathEl.style.stroke = '#34D399';
-        pathEl.style.fillOpacity = '0.75';
+        pathEl.style.fillOpacity = '0.7';
         pathEl.classList.remove('pulse');
-      }
-    }
-
-    if (badgeTxtEl) {
-      const displayCode = b.block_code ? b.block_code.replace('Block ', 'B') : code;
-      badgeTxtEl.textContent = `${displayCode}: ${util}%`;
-      badgeTxtEl.setAttribute('fill', util >= 95 ? '#F87171' : util >= 85 ? '#FBBF24' : util >= 70 ? '#38BDF8' : '#34D399');
-    }
-
-    if (badgeGroupEl) {
-      const rect = badgeGroupEl.querySelector('rect');
-      if (rect) {
-        rect.setAttribute('stroke', util >= 95 ? '#EF4444' : util >= 85 ? '#F59E0B' : util >= 70 ? '#38BDF8' : '#34D399');
       }
     }
   });
