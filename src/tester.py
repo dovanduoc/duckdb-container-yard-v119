@@ -123,10 +123,11 @@ def run_all_tests():
             SELECT * FROM v_container WHERE gate_in_ts >= '2026-01-01' LIMIT 1
         """).df()
         if not df.empty:
+            target_id = int(df.iloc[0]["container_id"])
             gate_in = pd.to_datetime(df.iloc[0]["gate_in_ts"]).date()
             before_date = gate_in - timedelta(days=1)
             res = get_current_containers(limit=None, selected_date=str(before_date))
-            assert df.iloc[0]["container_no"] not in res["container_no"].values, "Container không được tồn trước Gate In!"
+            assert target_id not in res["container_id"].values, f"Lượt container_id {target_id} không được tồn trước Gate In!"
 
     def test_asof_02():
         # 2. Tại đúng ngày Gate In -> tính tồn và dwell_days = 1
@@ -134,10 +135,11 @@ def run_all_tests():
             SELECT * FROM v_container WHERE gate_in_ts IS NOT NULL LIMIT 1
         """).df()
         if not df.empty:
+            target_id = int(df.iloc[0]["container_id"])
             gate_in = pd.to_datetime(df.iloc[0]["gate_in_ts"]).date()
             res = get_current_containers(limit=None, selected_date=str(gate_in))
-            match = res[res["container_no"] == df.iloc[0]["container_no"]]
-            assert not match.empty, "Container phải có mặt tại ngày Gate In!"
+            match = res[res["container_id"] == target_id]
+            assert not match.empty, f"Lượt container_id {target_id} phải có mặt tại ngày Gate In!"
             assert match.iloc[0]["dwell_days"] == 1, f"dwell_days phải bằng 1 tại ngày Gate In (nhận {match.iloc[0]['dwell_days']})!"
 
     def test_asof_03():
@@ -149,10 +151,11 @@ def run_all_tests():
             LIMIT 1
         """).df()
         if not df.empty:
+            target_id = int(df.iloc[0]["container_id"])
             gate_in = pd.to_datetime(df.iloc[0]["gate_in_ts"]).date()
             mid_date = gate_in + timedelta(days=1)
             res = get_current_containers(limit=None, selected_date=str(mid_date))
-            assert df.iloc[0]["container_no"] in res["container_no"].values, "Container phải tồn giữa Gate In và Gate Out!"
+            assert target_id in res["container_id"].values, f"Lượt container_id {target_id} phải tồn giữa Gate In và Gate Out!"
 
     def test_asof_04():
         # 4. Tại ngày Gate Out -> tính tồn (khoảng đóng) và dwell_days đúng công thức
@@ -162,11 +165,12 @@ def run_all_tests():
             LIMIT 1
         """).df()
         if not df.empty:
+            target_id = int(df.iloc[0]["container_id"])
             gate_in = pd.to_datetime(df.iloc[0]["gate_in_ts"]).date()
             gate_out = pd.to_datetime(df.iloc[0]["gate_out_ts"]).date()
             res = get_current_containers(limit=None, selected_date=str(gate_out))
-            match = res[res["container_no"] == df.iloc[0]["container_no"]]
-            assert not match.empty, "Container phải được tính tồn tại ngày Gate Out (khoảng đóng)!"
+            match = res[res["container_id"] == target_id]
+            assert not match.empty, f"Lượt container_id {target_id} phải được tính tồn tại ngày Gate Out (khoảng đóng)!"
             expected_dwell = (gate_out - gate_in).days + 1
             assert match.iloc[0]["dwell_days"] == expected_dwell, "dwell_days tại Gate Out không khớp công thức!"
 
@@ -178,10 +182,11 @@ def run_all_tests():
             LIMIT 1
         """).df()
         if not df.empty:
+            target_id = int(df.iloc[0]["container_id"])
             gate_out = pd.to_datetime(df.iloc[0]["gate_out_ts"]).date()
             after_date = gate_out + timedelta(days=1)
             res = get_current_containers(limit=None, selected_date=str(after_date))
-            assert df.iloc[0]["container_no"] not in res["container_no"].values, "Container không được tồn sau ngày Gate Out!"
+            assert target_id not in res["container_id"].values, f"Lượt container_id {target_id} không được tồn sau ngày Gate Out!"
 
     def test_asof_06():
         # 6. Đồng bộ số liệu KPI và Ranking tại cùng ngày phân tích

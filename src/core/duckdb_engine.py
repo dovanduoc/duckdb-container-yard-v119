@@ -80,12 +80,14 @@ def init_duckdb_views(con):
 
         CREATE OR REPLACE TEMP VIEW v_container_type_ref AS
         SELECT DISTINCT
-            container_type,
-            CAST(
-                REGEXP_EXTRACT(container_type, '^[0-9]+') AS INTEGER
+            TRIM(container_type) AS container_type,
+            COALESCE(
+                TRY_CAST(REGEXP_EXTRACT(container_type, '^[0-9]+') AS INTEGER),
+                TRY_CAST(container_size AS INTEGER),
+                20
             ) AS container_size_feet
         FROM v_container
-        WHERE container_type IS NOT NULL;
+        WHERE container_type IS NOT NULL AND TRIM(container_type) != '';
     """)
 
 

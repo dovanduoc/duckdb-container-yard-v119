@@ -166,59 +166,89 @@ def get_single_container_history(container_no: str = Query("PILU0017000")):
                 "events": []
             }
 
-        # Trích xuất các mốc sự kiện
-        events = []
-        first_row = history_df.iloc[0]
-        gate_in = first_row.get("gate_in_ts")
-        gate_out = first_row.get("gate_out_ts")
-        hist = first_row.get("hist")
-        yard_code = first_row.get("container_yard_code")
+        # Nhóm theo từng lượt vào bãi (container_id / visit)
+        visits = []
+        all_events = []
+        unique_container_ids = history_df["container_id"].drop_duplicates().tolist()
 
-        if pd.notna(gate_in):
-            events.append({
-                "title": f"Cổng vào cảng (Gate-In) - Bãi {yard_code or 'A'}",
-                "timestamp": str(gate_in),
-                "type": "in",
-                "badge": "CỔNG VÀO",
-                "description": f"Container hạ bãi tại khu vực {yard_code or 'A'} ghi nhận vào hệ thống."
+        for c_id in unique_container_ids:
+            visit_df = history_df[history_df["container_id"] == c_id]
+            first_row = visit_df.iloc[0]
+            gate_in = first_row.get("gate_in_ts")
+            gate_out = first_row.get("gate_out_ts")
+            hist = first_row.get("hist")
+            yard_code = first_row.get("container_yard_code")
+
+            visit_events = []
+            if pd.notna(gate_in):
+                evt = {
+                    "title": f"Cổng vào cảng (Gate-In) - Bãi {yard_code or 'A'}",
+                    "timestamp": str(gate_in),
+                    "type": "in",
+                    "badge": "CỔNG VÀO",
+                    "description": f"[Lượt #{c_id}] Container hạ bãi tại khu vực {yard_code or 'A'} ghi nhận vào hệ thống."
+                }
+                visit_events.append(evt)
+                all_events.append(evt)
+
+            for _, row in visit_df.iterrows():
+                evt_type = row.get("event_type")
+                evt_ts = row.get("event_ts")
+                evt_yard = row.get("event_yard_code")
+                if pd.notna(evt_type) and pd.notna(evt_ts):
+                    evt = {
+                        "title": f"Tác nghiệp: {evt_type}",
+                        "timestamp": str(evt_ts),
+                        "type": "move",
+                        "badge": "ĐẢO CHUYỂN",
+                        "description": f"[Lượt #{c_id}] Thao tác xếp dỡ/đảo bãi tại khu vực {evt_yard or 'N/A'}."
+                    }
+                    visit_events.append(evt)
+                    all_events.append(evt)
+
+            if str(hist).upper() == "Y" and pd.notna(gate_out):
+                evt = {
+                    "title": "Cổng ra cảng (Gate-Out) - Hoàn thành giao nhận",
+                    "timestamp": str(gate_out),
+                    "type": "out",
+                    "badge": "XUẤT BÃI",
+                    "description": f"[Lượt #{c_id}] Container đã được bốc lên phương tiện vận chuyển và rời khỏi bãi cảng."
+                }
+                visit_events.append(evt)
+                all_events.append(evt)
+            else:
+                evt = {
+                    "title": f"Hiện đang lưu bãi tại {yard_code or 'Bãi'}",
+                    "timestamp": "Hiện tại",
+                    "type": "current",
+                    "badge": "ĐANG TỒN BÃI",
+                    "description": f"[Lượt #{c_id}] Container đang lưu trú trong bãi cảng, sẵn sàng cho kế hoạch giao nhận."
+                }
+                visit_events.append(evt)
+                all_events.append(evt)
+
+            visits.append({
+                "container_id": int(c_id),
+                "gate_in_ts": str(gate_in) if pd.notna(gate_in) else None,
+                "gate_out_ts": str(gate_out) if pd.notna(gate_out) else None,
+                "hist": str(hist),
+                "yard_code": str(yard_code),
+                "status": "Đã xuất bãi" if str(hist).upper() == "Y" else "Đang tồn bãi",
+                "events": visit_events
             })
 
-        for _, row in history_df.iterrows():
-            evt_type = row.get("event_type")
-            evt_ts = row.get("event_ts")
-            evt_yard = row.get("event_yard_code")
-            if pd.notna(evt_type) and pd.notna(evt_ts):
-                events.append({
-                    "title": f"Tác nghiệp: {evt_type}",
-                    "timestamp": str(evt_ts),
-                    "type": "move",
-                    "badge": "ĐẢO CHUYỂN",
-                    "description": f"Thao tác xếp dỡ/đảo bãi tại khu vực {evt_yard or 'N/A'}."
-                })
-
-        if str(hist).upper() == "Y" and pd.notna(gate_out):
-            events.append({
-                "title": "Cổng ra cảng (Gate-Out) - Hoàn thành giao nhận",
-                "timestamp": str(gate_out),
-                "type": "out",
-                "badge": "XUẤT BÃI",
-                "description": "Container đã được bốc lên phương tiện vận chuyển và rời khỏi bãi cảng."
-            })
-        else:
-            events.append({
-                "title": f"Hiện đang lưu bãi tại {yard_code or 'Bãi'}",
-                "timestamp": "Hiện tại",
-                "type": "current",
-                "badge": "ĐANG TỒN BÃI",
-                "description": "Container đang lưu trú trong bãi cảng, sẵn sàng cho kế hoạch giao nhận."
-            })
+        latest_row = history_df.iloc[-1]
+        latest_yard = latest_row.get("container_yard_code")
+        latest_hist = latest_row.get("hist")
 
         return {
             "container_no": container_no,
             "found": True,
-            "yard_code": str(yard_code),
-            "status": "Đã xuất bãi" if str(hist).upper() == "Y" else "Đang tồn bãi",
-            "events": events,
+            "total_visits": len(visits),
+            "yard_code": str(latest_yard),
+            "status": "Đã xuất bãi" if str(latest_hist).upper() == "Y" else "Đang tồn bãi",
+            "events": all_events,
+            "visits": visits,
             "raw_data": df_to_clean_json(history_df)
         }
     except Exception as e:

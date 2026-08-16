@@ -320,7 +320,7 @@ async function loadYardMatrix() {
 
 async function loadContainerList(filterType) {
   try {
-    const res = await fetch(`/api/containers?filter_type=${filterType}&limit=40`);
+    const res = await fetch(`/api/containers?date=${AppState.analysisDate}&filter_type=${filterType}&limit=40`);
     const data = await res.json();
     const tbody = document.querySelector('#tableContainerList tbody');
 
@@ -415,7 +415,7 @@ async function loadTrendData(yardId) {
 
 async function loadRankingData() {
   try {
-    const res = await fetch('/api/rankings');
+    const res = await fetch(`/api/rankings?date=${AppState.analysisDate}`);
     const data = await res.json();
 
     ChartManager.renderRankShippingFull('chartRankShipping', data.shipping_lines);

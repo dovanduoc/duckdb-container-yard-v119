@@ -75,9 +75,15 @@ def classify_container_csv(csv_file_path):
                     WHEN container_size IS NULL OR TRY_CAST(container_size AS INTEGER) NOT IN (20, 40, 45)
                         THEN 'Rule 05: container_size không thuộc {20, 40, 45}'
 
-                    -- Rule 6: container_type bắt buộc
+                    -- Rule 6: container_type bắt buộc, tồn tại trong danh mục và tương thích size
                     WHEN container_type IS NULL OR TRIM(container_type) = ''
-                        THEN 'Rule 06: container_type không được để trống'
+                         OR TRIM(container_type) NOT IN (SELECT container_type FROM v_container_type_ref)
+                         OR (
+                             TRY_CAST(REGEXP_EXTRACT(TRIM(container_type), '^[0-9]+') AS INTEGER) IS NOT NULL
+                             AND TRY_CAST(container_size AS INTEGER) IS NOT NULL
+                             AND TRY_CAST(REGEXP_EXTRACT(TRIM(container_type), '^[0-9]+') AS INTEGER) != TRY_CAST(container_size AS INTEGER)
+                         )
+                        THEN 'Rule 06: container_type không thuộc danh mục hoặc sai lệch kích thước'
 
                     -- Rule 7: full_empty thuộc {'F', 'E'}
                     WHEN full_empty IS NULL OR UPPER(TRIM(full_empty)) NOT IN ('F', 'E')
