@@ -165,12 +165,19 @@ def classify_container_csv(csv_file_path):
 
 
 def write_etl_outputs(valid_df, rejected_df):
-    """Xuất file Parquet nén cho dòng hợp lệ và CSV cho dòng lỗi."""
+    """Xuất file Parquet nén cho dòng hợp lệ bằng DuckDB Native và CSV cho dòng lỗi."""
     ETL_VALID_PARQUET_PATH.parent.mkdir(parents=True, exist_ok=True)
     ETL_REJECTED_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     if not valid_df.empty:
-        valid_df.to_parquet(ETL_VALID_PARQUET_PATH, index=False, compression="snappy")
+        con = get_connection()
+        con.register("tmp_valid_export", valid_df)
+        safe_p_path = escape_duckdb_path(ETL_VALID_PARQUET_PATH)
+        con.execute(f"COPY tmp_valid_export TO '{safe_p_path}' (FORMAT PARQUET, COMPRESSION SNAPPY)")
+        try:
+            con.unregister("tmp_valid_export")
+        except Exception:
+            pass
     if not rejected_df.empty:
         rejected_df.to_csv(ETL_REJECTED_CSV_PATH, index=False)
 
