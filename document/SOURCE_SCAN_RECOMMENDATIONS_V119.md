@@ -6,22 +6,36 @@ Tài liệu này ghi nhận khuyến nghị sau khi rà soát source V119. Đây
 
 ### 1. Quy tắc nghiệp vụ
 
-Một lượt container được xem là đang tồn tại ngày A khi đồng thời thỏa mãn:
+Một lượt container được xem là đang tồn tại tại ngày A khi đồng thời thỏa mãn:
 
-- `ngày A > ngày Gate In`; và
-- `ngày A < ngày Gate Out`, hoặc `Gate Out IS NULL`.
+- `ngày A >= ngày Gate In`; và
+- `ngày A <= ngày Gate Out`, hoặc `Gate Out IS NULL`.
+
+Nói cách khác, khoảng thời gian tồn bãi được xét theo **khoảng đóng** ở mức ngày: từ ngày Gate In đến ngày Gate Out đều được tính là ngày container có mặt trong bãi. Với lượt chưa Gate Out, khoảng thời gian kéo dài từ ngày Gate In đến ngày phân tích.
 
 Biểu diễn ở mức ngày:
 
 ```sql
-CAST(gate_in_ts AS DATE) < selected_date
+CAST(gate_in_ts AS DATE) <= selected_date
 AND (
     gate_out_ts IS NULL
-    OR selected_date < CAST(gate_out_ts AS DATE)
+    OR selected_date <= CAST(gate_out_ts AS DATE)
 )
 ```
 
-Lưu ý: đây là quy tắc đúng theo phạm vi nghiệp vụ đã chốt cho bài demo. Nếu sau này cần tính container tồn ngay trong ngày Gate In hoặc ngày Gate Out thì phải xác định lại quy ước bao đóng khoảng thời gian.
+Tương đương:
+
+```text
+GateInDate <= A <= GateOutDate
+```
+
+hoặc, nếu chưa có Gate Out:
+
+```text
+GateInDate <= A AND GateOut IS NULL
+```
+
+Quy tắc này là baseline nghiệp vụ đã chốt cho bài demo và phải được dùng nhất quán trong toàn bộ phân tích theo ngày.
 
 ### 2. Phạm vi áp dụng
 
@@ -39,7 +53,7 @@ Không nên trộn dữ liệu của ngày A với trạng thái hiện tại (`
 
 ### 3. Tính số ngày lưu bãi theo ngày phân tích
 
-Với container tồn tại ngày A, thời gian lưu bãi phải được tính theo `selected_date`, không dùng `CURRENT_TIMESTAMP`:
+Với container tồn tại ngày A, thời gian lưu bãi tại lát cắt ngày A phải được tính theo `selected_date`, không dùng `CURRENT_TIMESTAMP`:
 
 ```sql
 DATE_DIFF(
@@ -49,7 +63,12 @@ DATE_DIFF(
 ) AS dwell_days
 ```
 
-Nếu cần độ chính xác đến giờ/phút thì chuyển sang so sánh timestamp, nhưng phải giữ cùng nguyên tắc lát cắt thời gian.
+Cần phân biệt hai khái niệm:
+
+- **số ngày chênh lệch**: Gate In đúng ngày A cho kết quả `0`;
+- **số ngày lịch có mặt trong bãi**: nếu nghiệp vụ cần đếm cả ngày Gate In là ngày thứ nhất thì có thể dùng `DATE_DIFF(...) + 1`.
+
+Trong bài tiểu luận và giao diện phải chọn một cách diễn giải và sử dụng thống nhất. Quy tắc xác định container có tồn tại ngày A vẫn là `GateInDate <= A <= GateOutDate` hoặc Gate Out chưa phát sinh.
 
 ### 4. Tách rõ hai ngữ nghĩa trong service/API
 
@@ -71,20 +90,22 @@ Nếu một hàm nhận `selected_date`, toàn bộ dữ liệu trả về từ 
 
 ### 5. Vị trí bãi tại ngày A
 
-Nếu cần xác định container nằm ở bãi nào tại ngày A, không nên luôn lấy `container.yard_area_id` hiện tại/cuối cùng. Cần xác định sự kiện gần nhất có `event_ts <= ngày A` trong `container_event`, sau đó suy ra `yard_area_id` có hiệu lực tại thời điểm đó.
+Nếu cần xác định container nằm ở bãi nào tại ngày A, không nên luôn lấy `container.yard_area_id` hiện tại/cuối cùng. Cần xác định sự kiện gần nhất có `event_ts` thuộc ngày A hoặc trước ngày A, sau đó suy ra `yard_area_id` có hiệu lực tại lát cắt phân tích.
 
-Điều này đặc biệt quan trọng khi container đã phát sinh nhiều lần `YARD_MOVE`.
+Ở mức timestamp, có thể hiểu mốc cuối ngày A là thời điểm tham chiếu để tìm sự kiện gần nhất. Điều này đặc biệt quan trọng khi container đã phát sinh nhiều lần `YARD_MOVE`.
 
 ### 6. Kiểm thử bắt buộc
 
 Nên bổ sung các ca kiểm thử tối thiểu:
 
-1. `selected_date <= gate_in_date` -> không được tính là tồn.
-2. `gate_in_date < selected_date < gate_out_date` -> được tính là tồn.
-3. `gate_out_ts IS NULL` và `selected_date > gate_in_date` -> được tính là tồn.
-4. `selected_date >= gate_out_date` -> không được tính là tồn.
-5. KPI số container, TEU, dwell và ranking cùng một `selected_date` phải dùng chung tập container as-of-date.
-6. Nếu có `YARD_MOVE`, vị trí bãi tại ngày A phải lấy theo sự kiện gần nhất trước hoặc tại mốc phân tích.
+1. `selected_date < gate_in_date` -> không được tính là tồn.
+2. `selected_date = gate_in_date` -> được tính là tồn.
+3. `gate_in_date < selected_date < gate_out_date` -> được tính là tồn.
+4. `selected_date = gate_out_date` -> được tính là tồn.
+5. `selected_date > gate_out_date` -> không được tính là tồn.
+6. `gate_out_ts IS NULL` và `selected_date >= gate_in_date` -> được tính là tồn.
+7. KPI số container, TEU, dwell và ranking cùng một `selected_date` phải dùng chung tập container as-of-date.
+8. Nếu có `YARD_MOVE`, vị trí bãi tại ngày A phải lấy theo sự kiện gần nhất trước hoặc trong ngày phân tích.
 
 ### 7. Mức ưu tiên
 
