@@ -110,18 +110,20 @@ def run_duckdb_benchmark(row_count):
     parquet_size_mb = parquet_path.stat().st_size / (1024 * 1024)
     size_ratio = csv_size_mb / parquet_size_mb if parquet_size_mb > 0 else 0
 
-    # 5. Đo thời gian truy vấn
+    # 5. Đo thời gian truy vấn (Lấy trung bình 3 lần chạy lặp thống kê)
     csv_scan_time_s = run_timed_query(
         con,
-        f"SELECT COUNT(*) FROM read_csv_auto('{escape_duckdb_path(csv_path)}')"
+        f"SELECT COUNT(*) FROM read_csv_auto('{escape_duckdb_path(csv_path)}')",
+        repeat_count=3
     )
     parquet_scan_time_s = run_timed_query(
         con,
-        f"SELECT COUNT(*) FROM read_parquet('{escape_duckdb_path(parquet_path)}')"
+        f"SELECT COUNT(*) FROM read_parquet('{escape_duckdb_path(parquet_path)}')",
+        repeat_count=3
     )
     speedup_ratio = csv_scan_time_s / parquet_scan_time_s if parquet_scan_time_s > 0 else 0
 
-    # 6. Đo truy vấn phân tích tổng hợp (Filter + Group By)
+    # 6. Đo truy vấn phân tích tổng hợp (Filter + Group By) - Lấy trung bình 3 lần chạy
     csv_agg_time_s = run_timed_query(
         con,
         f"""
@@ -129,7 +131,8 @@ def run_duckdb_benchmark(row_count):
         FROM read_csv_auto('{escape_duckdb_path(csv_path)}')
         WHERE hist = 'N' AND container_size >= 40
         GROUP BY yard_area_id, container_type
-        """
+        """,
+        repeat_count=3
     )
     parquet_agg_time_s = run_timed_query(
         con,
@@ -138,7 +141,8 @@ def run_duckdb_benchmark(row_count):
         FROM read_parquet('{escape_duckdb_path(parquet_path)}')
         WHERE hist = 'N' AND container_size >= 40
         GROUP BY yard_area_id, container_type
-        """
+        """,
+        repeat_count=3
     )
     agg_speedup_ratio = csv_agg_time_s / parquet_agg_time_s if parquet_agg_time_s > 0 else 0
 

@@ -1,10 +1,9 @@
 """
 Bộ kiểm thử tự động toàn diện cho hệ thống DEMO_DUCKDB_FASTAPI_V119:
 - Kiểm thử 14 hàm nghiệp vụ DuckDB OLAP Engine
-- Kiểm thử 4 ca xử lý biên & phòng vệ ngoại lệ (Edge Cases)
+- Kiểm thử 4 ca xử lý biên & phòng vệ ngoại lệ (Edge Cases & Data Contract)
 - Kiểm thử 8 RESTful API Endpoints của FastAPI
-- Kiểm thử Benchmark và ETL Pipeline
-Tổng cộng: 28+ ca kiểm thử tự động 100% Pass.
+Tổng cộng: 26 ca kiểm thử tự động (14 DB, 4 ETL, 8 API) 100% Pass.
 """
 
 import time

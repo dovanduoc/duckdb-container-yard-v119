@@ -76,13 +76,14 @@ def get_dashboard_overview(date: Optional[str] = None):
     try:
         kpi_df, highest_yard_df = get_overview_kpis(selected_date)
         yard_util_df = get_yard_utilization_by_date(selected_date)
-        shipping_df = get_shipping_line_ranking().head(5)
+        full_shipping_df = get_shipping_line_ranking()
+        shipping_df = full_shipping_df.head(5)
         cont_type_df = get_container_type_teu_ranking().head(5)
         overloaded_df = get_overloaded_yards(selected_date, threshold=95)
         upcoming_df = get_upcoming_overdue_containers(overdue_threshold_days=30, warning_days=5).head(5)
 
-        # Tính tổng TEU ước tính
-        total_teu = float(shipping_df["total_teu"].sum()) if not shipping_df.empty else 0.0
+        # Tính tổng TEU chính xác của toàn bộ container tồn bãi (từ 100% hãng tàu)
+        total_teu = float(full_shipping_df["total_teu"].sum()) if not full_shipping_df.empty else 0.0
 
         # Lấy giá trị KPI
         kpi_dict = dict(zip(kpi_df["chi_so"], kpi_df["gia_tri"])) if not kpi_df.empty else {}

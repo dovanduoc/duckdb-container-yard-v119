@@ -578,9 +578,9 @@ def get_overview_kpis(selected_date):
         highest_utilization = round(float(highest_yard_df.iloc[0]["ty_le_su_dung"]), 2)
 
         warning_yard_count = int(
-            ((yard_utilization_df["ty_le_su_dung"] >= 80) & (yard_utilization_df["ty_le_su_dung"] < 100)).sum()
+            ((yard_utilization_df["ty_le_su_dung"] >= 85) & (yard_utilization_df["ty_le_su_dung"] < 95)).sum()
         )
-        overloaded_yard_count = int((yard_utilization_df["ty_le_su_dung"] >= 100).sum())
+        overloaded_yard_count = int((yard_utilization_df["ty_le_su_dung"] >= 95).sum())
 
     kpi_df = pd.DataFrame({
         "chi_so": [

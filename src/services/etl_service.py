@@ -61,13 +61,15 @@ def classify_container_csv(csv_file_path):
                     WHEN container_no IS NULL OR NOT REGEXP_MATCHES(TRIM(container_no), '^[A-Z]{4}[0-9]{7}$')
                         THEN 'Rule 02: container_no sai định dạng ISO 6346'
 
-                    -- Rule 3: shipping_line_id hợp lệ
+                    -- Rule 3: shipping_line_id hợp lệ và tồn tại trong danh mục v_shipping_line
                     WHEN shipping_line_id IS NULL OR TRY_CAST(shipping_line_id AS BIGINT) IS NULL
-                        THEN 'Rule 03: shipping_line_id không hợp lệ'
+                         OR TRY_CAST(shipping_line_id AS BIGINT) NOT IN (SELECT shipping_line_id FROM v_shipping_line)
+                        THEN 'Rule 03: shipping_line_id không tồn tại trong danh mục'
 
-                    -- Rule 4: yard_area_id hợp lệ
+                    -- Rule 4: yard_area_id hợp lệ và tồn tại trong danh mục v_yard_area
                     WHEN yard_area_id IS NULL OR TRY_CAST(yard_area_id AS BIGINT) IS NULL
-                        THEN 'Rule 04: yard_area_id không hợp lệ'
+                         OR TRY_CAST(yard_area_id AS BIGINT) NOT IN (SELECT yard_area_id FROM v_yard_area)
+                        THEN 'Rule 04: yard_area_id không tồn tại trong danh mục'
 
                     -- Rule 5: container_size thuộc {20, 40, 45}
                     WHEN container_size IS NULL OR TRY_CAST(container_size AS INTEGER) NOT IN (20, 40, 45)
@@ -88,7 +90,7 @@ def classify_container_csv(csv_file_path):
                     -- Rule 9: gate_out_ts phải sau gate_in_ts nếu có
                     WHEN gate_out_ts IS NOT NULL AND TRIM(gate_out_ts) != '' AND (
                         TRY_CAST(gate_out_ts AS TIMESTAMP) IS NULL OR
-                        TRY_CAST(gate_out_ts AS TIMESTAMP) < TRY_CAST(gate_in_ts AS TIMESTAMP)
+                        TRY_CAST(gate_out_ts AS TIMESTAMP) <= TRY_CAST(gate_in_ts AS TIMESTAMP)
                     ) THEN 'Rule 09: gate_out_ts phải sau gate_in_ts'
 
                     -- Rule 10: hist thuộc {'Y', 'N'}
