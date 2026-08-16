@@ -881,6 +881,55 @@ table.data-table td.down { color: var(--red); font-weight: 750; }
   line-height: 1.4;
 }
 
+.timeline-loading-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 36px 16px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.spinner-mini {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid rgba(2, 132, 199, 0.2);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spinnerRotate 0.6s linear infinite;
+}
+
+@keyframes spinnerRotate {
+  to { transform: rotate(360deg); }
+}
+
+.timeline-result-header {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-highlight-pulse {
+  animation: cardPulseAnim 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes cardPulseAnim {
+  0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.6); border-color: #38BDF8; }
+  50% { box-shadow: 0 0 0 8px rgba(56, 189, 248, 0); border-color: #38BDF8; }
+  100% { box-shadow: none; }
+}
+
 /* ==========================================================================
    ROLE-BASED YARD OPERATOR UI COMPONENTS (BADGES & PILLS)
    ========================================================================== */

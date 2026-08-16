@@ -291,8 +291,10 @@ async function refreshCurrentView() {
     case 'container':
       const currentFilter = document.getElementById('containerFilterSelect').value || 'current';
       const currentSearch = document.getElementById('searchContInput').value.trim() || 'PILU0017000';
-      await loadContainerList(currentFilter);
-      await searchContainerHistory(currentSearch);
+      await Promise.all([
+        loadContainerList(currentFilter),
+        searchContainerHistory(currentSearch)
+      ]);
       break;
     case 'trend':
       await loadTrendData(document.getElementById('trendYardSelect').value);
@@ -1175,25 +1177,79 @@ async function loadContainerList(filterType) {
   }
 }
 
-async function searchContainerHistory(containerNo) {
-  try {
-    document.getElementById('searchContInput').value = containerNo;
-    const res = await fetch(`/api/containers/history?container_no=${encodeURIComponent(containerNo)}`);
-    const data = await res.json();
-    const container = document.getElementById('containerTimelineContainer');
+async function traceContainerHistory(containerNo) {
+  if (!containerNo) return;
+  const cleanNo = containerNo.trim().toUpperCase();
 
-    if (!data.found) {
-      container.innerHTML = `<div style="padding:14px;color:var(--muted);text-align:center">Không tìm thấy container mang mã số <strong>${containerNo}</strong> trong hệ thống.</div>`;
+  // 1. Chuyển sang tab Container nếu đang ở tab khác
+  if (AppState.currentView !== 'container') {
+    AppState.currentView = 'container';
+    document.querySelectorAll('[data-view]').forEach(el => {
+      el.classList.toggle('active', el.dataset.view === 'container');
+    });
+    document.querySelectorAll('.view-panel').forEach(panel => {
+      panel.classList.toggle('active', panel.id === 'view-container');
+    });
+    // Tải danh sách container nền song song
+    loadContainerList();
+  }
+
+  // 2. Tra cứu lịch sử container và cuộn màn hình tới timeline
+  await searchContainerHistory(cleanNo, true);
+}
+
+async function searchContainerHistory(containerNo, shouldScroll = false) {
+  if (!containerNo) return;
+  const cleanNo = containerNo.trim().toUpperCase();
+  const searchInput = document.getElementById('searchContInput');
+  const container = document.getElementById('containerTimelineContainer');
+
+  if (searchInput) {
+    searchInput.value = cleanNo;
+  }
+
+  if (container) {
+    // HIỂN THỊ NGAY LẬP TỨC LOADING STATE (0ms phản hồi)
+    container.innerHTML = `
+      <div class="timeline-loading-box">
+        <div class="spinner-mini"></div>
+        <div>Đang truy vết lộ trình & lịch sử container <strong style="color:var(--primary)">${cleanNo}</strong>...</div>
+      </div>
+    `;
+  }
+
+  // Highlight thẻ Card Timeline để người dùng nhận diện ngay vị trí cập nhật
+  const timelineCard = container ? container.closest('.card') : null;
+  if (timelineCard && shouldScroll) {
+    timelineCard.classList.remove('card-highlight-pulse');
+    void timelineCard.offsetWidth; // Trigger reflow
+    timelineCard.classList.add('card-highlight-pulse');
+    timelineCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  try {
+    const res = await fetch(`/api/containers/history?container_no=${encodeURIComponent(cleanNo)}`);
+    const data = await res.json();
+    if (!container) return;
+
+    if (!data.found || !data.events || data.events.length === 0) {
+      container.innerHTML = `
+        <div style="padding:20px 14px;color:var(--muted);text-align:center;background:var(--surface-2);border-radius:8px;border:1px dashed var(--line)">
+          <div style="font-size:24px;margin-bottom:6px">🔍</div>
+          <div>Không tìm thấy container mang mã số <strong style="color:var(--ink)">${cleanNo}</strong> trong hệ thống.</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Vui lòng kiểm tra lại mã số container hoặc chọn một container khác trên bảng.</div>
+        </div>
+      `;
       return;
     }
 
     container.innerHTML = `
-      <div style="background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+      <div class="timeline-result-header">
         <div>
-          <span style="font-size:10px;color:var(--muted);font-weight:750;text-transform:uppercase">CONTAINER NO</span>
-          <div style="font-size:15px;font-weight:850;color:var(--primary)">${data.container_no}</div>
+          <span style="font-size:10px;color:var(--muted);font-weight:750;text-transform:uppercase;letter-spacing:0.5px">CONTAINER NO</span>
+          <div style="font-size:16px;font-weight:900;color:var(--primary);font-family:monospace">${data.container_no}</div>
         </div>
-        <span class="yard-status-pill ${data.status === 'Đang tồn bãi' ? 'pill-safe' : 'pill-high'}">${data.status}</span>
+        <span class="yard-status-pill ${data.status === 'Đang tồn bãi' ? 'pill-safe' : 'pill-high'}">${data.status || 'Đang tồn bãi'}</span>
       </div>
 
       <div class="timeline-stepper">
@@ -1212,9 +1268,12 @@ async function searchContainerHistory(containerNo) {
       </div>
     `;
 
-    showToast(`📍 Đã tải lịch sử truy vết của ${containerNo}`);
+    showToast(`📍 Đã tải lịch sử truy vết của container ${cleanNo}`);
   } catch (err) {
     console.error('Lỗi khi tra cứu container history:', err);
+    if (container) {
+      container.innerHTML = `<div style="padding:14px;color:var(--red);text-align:center">❌ Lỗi kết nối khi tra cứu lịch sử container ${cleanNo}</div>`;
+    }
   }
 }
 
@@ -1705,12 +1764,36 @@ const DataGridManager = {
     const shortText = cleanCellText.length > 20 ? cleanCellText.substring(0, 18) + '...' : cleanCellText;
 
     const tr = td.closest('tr');
-    const containerNo = tr ? (tr.cells[0]?.textContent.trim() || '') : '';
-    const isContainer = /^[A-Z]{4}\d{6,7}$/i.test(cleanCellText) || /^[A-Z]{4}\d{6,7}$/i.test(containerNo);
-    const resolvedContNo = /^[A-Z]{4}\d{6,7}$/i.test(cleanCellText) ? cleanCellText : containerNo;
 
-    const isBlock = /^B0\d$/i.test(cleanCellText) || /^B\d$/i.test(cleanCellText) || /^YA0\d$/i.test(cleanCellText);
-    const resolvedBlock = isBlock ? cleanCellText : '';
+    // 1. Trích xuất mã số container chính xác (quét cả ô hiện tại và các ô trong dòng)
+    let resolvedContNo = '';
+    const matchDirect = cleanCellText.match(/[A-Z]{4}\d{6,7}/i);
+    if (matchDirect) {
+      resolvedContNo = matchDirect[0].toUpperCase();
+    } else if (tr && tr.cells) {
+      for (let cell of tr.cells) {
+        const m = (cell.textContent || '').match(/[A-Z]{4}\d{6,7}/i);
+        if (m) {
+          resolvedContNo = m[0].toUpperCase();
+          break;
+        }
+      }
+    }
+
+    // 2. Trích xuất mã block
+    let resolvedBlock = '';
+    const matchBlock = cleanCellText.match(/^(B0[1-8]|B[1-8]|YA0[1-8])$/i);
+    if (matchBlock) {
+      resolvedBlock = matchBlock[0].toUpperCase();
+    } else if (tr && tr.cells) {
+      for (let cell of tr.cells) {
+        const mb = (cell.textContent || '').trim().match(/^(B0[1-8]|B[1-8]|YA0[1-8])$/i);
+        if (mb) {
+          resolvedBlock = mb[0].toUpperCase();
+          break;
+        }
+      }
+    }
 
     let html = `
       <div class="context-menu-header">
@@ -1742,16 +1825,16 @@ const DataGridManager = {
       </button>
     `;
 
-    if (isContainer && resolvedContNo) {
+    if (resolvedContNo) {
       html += `
-        <button class="context-menu-item highlight" onclick="searchContainerHistory('${resolvedContNo}');switchView('container');DataGridManager.hideContextMenu()">
+        <button class="context-menu-item highlight" onclick="traceContainerHistory('${resolvedContNo}');DataGridManager.hideContextMenu()">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
           <span>📍 Truy vết lộ trình <strong>${resolvedContNo}</strong></span>
         </button>
       `;
     }
 
-    if (isBlock && resolvedBlock) {
+    if (resolvedBlock) {
       html += `
         <button class="context-menu-item highlight" onclick="drillDownToBlock('${resolvedBlock}', '${resolvedBlock}');DataGridManager.hideContextMenu()">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon></svg>
