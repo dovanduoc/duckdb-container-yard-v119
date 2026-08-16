@@ -922,54 +922,7 @@ table.data-table td.down { color: var(--red); font-weight: 750; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: var(--muted);
-/* Map Mode Switcher */
-.map-mode-switcher {
-  display: inline-flex;
-  align-items: center;
-  background: var(--surface, #1E293B);
-  border: 1px solid var(--line, #334155);
-  border-radius: 8px;
-  padding: 3px;
-  gap: 3px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-}
-
-.map-mode-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--muted, #94A3B8);
-  font-size: 11.5px;
-  font-weight: 750;
-  cursor: pointer;
-  transition: all 0.18s ease;
-}
-
-.map-mode-btn svg {
-  width: 14px;
-  height: 14px;
-  stroke: currentColor;
-}
-
-.map-mode-btn:hover {
-  color: var(--ink, #F8FAFC);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.map-mode-btn.active {
-  background: linear-gradient(180deg, #0284C7, #0369A1);
-  color: #FFFFFF !important;
-  border-color: #38BDF8;
-  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35);
-}
-
-.map-mode-btn.active svg {
-  stroke: #FFFFFF !important;
+  font-size: 11px;
 }
 
 @media(max-width: 1200px) {
