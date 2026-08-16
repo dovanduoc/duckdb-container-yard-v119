@@ -311,7 +311,7 @@ def get_shipping_line_ranking():
                     CASE
                         WHEN c.container_size_feet = 20 THEN 1.0
                         WHEN c.container_size_feet = 40 THEN 2.0
-                        WHEN c.container_size_feet = 45 THEN 2.25
+                        WHEN c.container_size_feet = 45 THEN 2.0
                         ELSE 1.0
                     END
                 ) AS total_teu
@@ -370,7 +370,7 @@ def get_container_type_teu_ranking():
                     CASE
                         WHEN container_size_feet = 20 THEN 1.0
                         WHEN container_size_feet = 40 THEN 2.0
-                        WHEN container_size_feet = 45 THEN 2.25
+                        WHEN container_size_feet = 45 THEN 2.0
                         ELSE 1.0
                     END
                 ) AS total_teu

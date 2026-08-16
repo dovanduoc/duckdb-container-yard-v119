@@ -78,7 +78,7 @@ Hệ thống thiết lập 6 Views logic ảo trong DuckDB, phản ánh toàn di
 
 ### 3.2. Công thức Nghiệp vụ Cốt lõi:
 * **Quy đổi chuẩn TEU (Twenty-foot Equivalent Unit)**:
-  $$\text{TEU} = \begin{cases} 1.0 & \text{với container } 20\text{ feet} \\ 2.0 & \text{với container } 40\text{ feet} \\ 2.25 & \text{với container } 45\text{ feet} \end{cases}$$
+  $$\text{TEU} = \begin{cases} 1.0 & \text{với container } 20\text{ feet} \\ 2.0 & \text{với container } 40\text{ feet / } 45\text{ feet} \end{cases}$$
 * **Số ngày lưu bãi (Dwell Days)**:
   $$\text{Dwell Days} = \frac{\text{Current\_Timestamp} - \text{Gate\_In\_Timestamp}}{86400 \text{ giây}}$$
 * **Tỷ lệ sử dụng sức chứa bãi (%)**:
