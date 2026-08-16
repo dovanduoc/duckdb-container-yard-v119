@@ -67,13 +67,28 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
           <span id="updateTimeTxt">Đang tải...</span>
         </div>
+
+        <!-- Date Picker Compact trên Topbar -->
+        <div class="topbar-date-picker" title="Chọn ngày phân tích điều hành (Tự động cập nhật)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span class="date-picker-label">NGÀY:</span>
+          <input type="date" id="analysisDateInput" value="2026-08-14" />
+        </div>
+
+        <!-- Nút Refresh dạng Icon Button -->
+        <button class="icon-btn" id="refreshBtn" title="Làm mới số liệu tức thì">
+          <svg id="refreshIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 7v5h-5M4 17v-5h5M18 12a6 6 0 0 0-10.5-4M6 12a6 6 0 0 0 10.5 4"/>
+          </svg>
+        </button>
+
         <span class="status-badge"><span class="status-dot"></span>DuckDB OLAP Online</span>
         <button class="icon-btn" id="themeBtn" title="Chuyển đổi Sáng / Tối"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.7A8 8 0 1 1 11.3 3a6.5 6.5 0 0 0 9.7 9.7Z"/></svg></button>
         <div class="user-badge"><div class="avatar">OM</div><span class="user-name">Ops Manager</span></div>
       </div>
     </header>
 
-    <!-- KPI Summary Section -->
+    <!-- KPI Summary Section (4 Cột trải đều 100% diện tích) -->
     <section class="kpis-section">
       <article class="kpi-card">
         <div class="kpi-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="8" width="16" height="11" rx="1"/><path d="M8 8V5h8v3M8 11v5M12 11v5M16 11v5"/></svg></div>
@@ -110,14 +125,6 @@
           <div class="kpi-sub">Cao nhất: <span id="kpiHighestYard">-</span></div>
         </div>
       </article>
-
-      <div class="control-stack">
-        <button class="btn-primary" id="refreshBtn"><svg id="refreshIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7v5h-5M4 17v-5h5M18 12a6 6 0 0 0-10.5-4M6 12a6 6 0 0 0 10.5 4"/></svg>Làm mới số liệu</button>
-        <div class="date-filter-box">
-          <label style="font-size:10px;font-weight:750;color:var(--muted)">NGÀY:</label>
-          <input type="date" id="analysisDateInput" value="2026-08-14" />
-        </div>
-      </div>
     </section>
 
     <!-- Top Tab Bar -->

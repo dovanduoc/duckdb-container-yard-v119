@@ -277,11 +277,11 @@ button { color: inherit; }
 .user-name { font-size: 12px; font-weight: 750; color: var(--ink); }
 
 /* ==========================================================================
-   KPI SUMMARY CARDS & TOP CONTROL STACK
+   KPI SUMMARY CARDS (4 CỘT TRẢI ĐỀU 100% DIỆN TÍCH)
    ========================================================================== */
 .kpis-section {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) 240px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -348,11 +348,54 @@ button { color: inherit; }
   margin-top: 1px;
 }
 
-.control-stack {
-  display: grid;
-  gap: 8px;
-  align-content: center;
+/* Date Picker & Refresh Button trên Topbar */
+.topbar-date-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  height: 34px;
+  box-shadow: var(--shadow-soft);
+  transition: all 0.15s ease;
 }
+
+.topbar-date-picker:hover, .topbar-date-picker:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+.topbar-date-picker svg {
+  width: 14px;
+  height: 14px;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.date-picker-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--muted);
+  letter-spacing: 0.4px;
+}
+
+.topbar-date-picker input[type="date"] {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 750;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+
+.spin { animation: spin 0.7s linear; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .btn-primary {
   border: 0;
@@ -373,29 +416,6 @@ button { color: inherit; }
 
 .btn-primary:hover { filter: brightness(1.06); }
 .btn-primary svg { width: 15px; height: 15px; }
-
-.spin { animation: spin 0.7s linear; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.date-filter-box {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 5px 8px;
-}
-
-.date-filter-box input {
-  border: 0;
-  background: transparent;
-  color: var(--ink);
-  font-size: 11.5px;
-  font-weight: 650;
-  outline: none;
-  width: 100%;
-}
 
 /* ==========================================================================
    NAVIGATION TAB BAR
