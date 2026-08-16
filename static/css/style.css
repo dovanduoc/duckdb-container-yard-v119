@@ -528,6 +528,60 @@ button { color: inherit; }
 
 .card-body { padding: 12px 14px; }
 
+.btn-toggle-view {
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 750;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-toggle-view:hover {
+  background: rgba(2, 132, 199, 0.12);
+  border-color: var(--primary);
+}
+
+.btn-toggle-view svg {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.2s ease;
+}
+
+.btn-toggle-view.expanded svg {
+  transform: rotate(180deg);
+}
+
+.table-footer-action {
+  padding: 6px 10px;
+  background: var(--surface-2);
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+
+.link-btn {
+  background: transparent;
+  border: 0;
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+  background: rgba(2, 132, 199, 0.08);
+}
+
 /* Table Styling */
 .table-wrap {
   overflow-x: auto;

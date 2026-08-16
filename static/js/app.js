@@ -8,7 +8,11 @@ const AppState = {
   analysisDate: '2026-08-14',
   minDate: '2025-08-15',
   maxDate: '2026-08-14',
-  yards: []
+  yards: [],
+  shippingRankingData: [],
+  typeRankingData: [],
+  showFullShipping: false,
+  showFullType: false
 };
 
 // =========================================================================
@@ -98,6 +102,28 @@ function setupEventListeners() {
       }
     }, 200);
   });
+
+  // Toggle View Bảng Hãng tàu (Top 5 <-> Full)
+  const toggleShipping = () => {
+    AppState.showFullShipping = !AppState.showFullShipping;
+    renderOverviewShippingTable();
+    showToast(AppState.showFullShipping ? '📊 Đang hiển thị toàn bộ hãng tàu' : '📊 Đang hiển thị Top 5 hãng tàu');
+  };
+  const shipTopBtn = document.getElementById('toggleShippingViewBtn');
+  const shipBottomBtn = document.getElementById('toggleShippingViewBtnBottom');
+  if (shipTopBtn) shipTopBtn.addEventListener('click', toggleShipping);
+  if (shipBottomBtn) shipBottomBtn.addEventListener('click', toggleShipping);
+
+  // Toggle View Bảng Loại Container (Top 5 <-> Full)
+  const toggleType = () => {
+    AppState.showFullType = !AppState.showFullType;
+    renderOverviewTypeTable();
+    showToast(AppState.showFullType ? '▥ Đang hiển thị toàn bộ loại container' : '▥ Đang hiển thị Top 5 loại container');
+  };
+  const typeTopBtn = document.getElementById('toggleTypeViewBtn');
+  const typeBottomBtn = document.getElementById('toggleTypeViewBtnBottom');
+  if (typeTopBtn) typeTopBtn.addEventListener('click', toggleType);
+  if (typeBottomBtn) typeBottomBtn.addEventListener('click', toggleType);
 
   // Container Filter
   document.getElementById('containerFilterSelect').addEventListener('change', async (e) => {
@@ -227,32 +253,17 @@ async function loadOverviewData() {
     document.getElementById('kpiOverloadedCount').textContent = data.kpi_cards.overloaded_yards_count || 0;
     document.getElementById('kpiHighestYard').textContent = `${data.kpi_cards.highest_yard_name} (${data.kpi_cards.highest_utilization}%)`;
 
-    // Charts
-    ChartManager.renderOverviewShipping('chartOverviewShipping', data.shipping_ranking);
-    ChartManager.renderOverviewType('chartOverviewType', data.container_type_ranking);
+    // Lưu dữ liệu bảng xếp hạng
+    AppState.shippingRankingData = data.shipping_ranking || [];
+    AppState.typeRankingData = data.container_type_ranking || [];
 
-    // Tables
-    const shipTbody = document.querySelector('#tableOverviewShipping tbody');
-    shipTbody.innerHTML = data.shipping_ranking.map((row, idx) => `
-      <tr>
-        <td><strong>${idx + 1}</strong></td>
-        <td><span style="font-weight:750;color:var(--primary)">${row.shipping_line_code}</span></td>
-        <td>${row.shipping_line_name}</td>
-        <td>${(row.current_container_count || 0).toLocaleString()}</td>
-        <td><strong>${(row.total_teu || 0).toLocaleString()}</strong></td>
-      </tr>
-    `).join('');
+    // Charts (luôn vẽ Top 5 gọn gàng cho đồ họa)
+    ChartManager.renderOverviewShipping('chartOverviewShipping', AppState.shippingRankingData.slice(0, 5));
+    ChartManager.renderOverviewType('chartOverviewType', AppState.typeRankingData.slice(0, 5));
 
-    const typeTbody = document.querySelector('#tableOverviewType tbody');
-    typeTbody.innerHTML = data.container_type_ranking.map((row, idx) => `
-      <tr>
-        <td><strong>${idx + 1}</strong></td>
-        <td><strong>${row.container_type}</strong></td>
-        <td>${(row.current_container_count || 0).toLocaleString()}</td>
-        <td>${(row.total_teu || 0).toLocaleString()}</td>
-        <td><span class="up">${row.teu_percentage}%</span></td>
-      </tr>
-    `).join('');
+    // Dynamic Data Grid Tables (mặc định Top 5, có nút bấm xem Full)
+    renderOverviewShippingTable();
+    renderOverviewTypeTable();
 
     // Overload alerts
     const alertList = document.getElementById('overviewOverloadList');
@@ -295,6 +306,74 @@ async function loadOverviewData() {
   } catch (err) {
     console.error('Lỗi khi nạp dữ liệu overview:', err);
   }
+}
+
+function renderOverviewShippingTable() {
+  const data = AppState.shippingRankingData || [];
+  const total = data.length;
+  const isFull = AppState.showFullShipping;
+  const displayData = isFull ? data : data.slice(0, 5);
+
+  const shipTbody = document.querySelector('#tableOverviewShipping tbody');
+  if (!shipTbody) return;
+
+  if (displayData.length === 0) {
+    shipTbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Không có dữ liệu</td></tr>';
+    return;
+  }
+
+  shipTbody.innerHTML = displayData.map((row, idx) => `
+    <tr>
+      <td><strong>${row.ranking || idx + 1}</strong></td>
+      <td><span style="font-weight:750;color:var(--primary)">${row.shipping_line_code}</span></td>
+      <td>${row.shipping_line_name}</td>
+      <td>${(row.current_container_count || 0).toLocaleString()}</td>
+      <td><strong>${(row.total_teu || 0).toLocaleString()}</strong></td>
+    </tr>
+  `).join('');
+
+  // Cập nhật text nút bấm header & footer
+  const topTxt = document.getElementById('shippingToggleTxt');
+  const topBtn = document.getElementById('toggleShippingViewBtn');
+  const bottomBtn = document.getElementById('toggleShippingViewBtnBottom');
+
+  if (topTxt) topTxt.textContent = isFull ? 'Thu gọn (Top 5)' : `Xem tất cả (${total})`;
+  if (topBtn) topBtn.classList.toggle('expanded', isFull);
+  if (bottomBtn) bottomBtn.textContent = isFull ? '▲ Thu gọn về Top 5' : `Xem toàn bộ ${total} hãng tàu ➔`;
+}
+
+function renderOverviewTypeTable() {
+  const data = AppState.typeRankingData || [];
+  const total = data.length;
+  const isFull = AppState.showFullType;
+  const displayData = isFull ? data : data.slice(0, 5);
+
+  const typeTbody = document.querySelector('#tableOverviewType tbody');
+  if (!typeTbody) return;
+
+  if (displayData.length === 0) {
+    typeTbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Không có dữ liệu</td></tr>';
+    return;
+  }
+
+  typeTbody.innerHTML = displayData.map((row, idx) => `
+    <tr>
+      <td><strong>${row.ranking || idx + 1}</strong></td>
+      <td><strong>${row.container_type}</strong></td>
+      <td>${(row.current_container_count || 0).toLocaleString()}</td>
+      <td>${(row.total_teu || 0).toLocaleString()}</td>
+      <td><span class="up">${row.teu_percentage}%</span></td>
+    </tr>
+  `).join('');
+
+  // Cập nhật text nút bấm header & footer
+  const topTxt = document.getElementById('typeToggleTxt');
+  const topBtn = document.getElementById('toggleTypeViewBtn');
+  const bottomBtn = document.getElementById('toggleTypeViewBtnBottom');
+
+  if (topTxt) topTxt.textContent = isFull ? 'Thu gọn (Top 5)' : `Xem tất cả (${total})`;
+  if (topBtn) topBtn.classList.toggle('expanded', isFull);
+  if (bottomBtn) bottomBtn.textContent = isFull ? '▲ Thu gọn về Top 5' : `Xem toàn bộ ${total} loại container ➔`;
 }
 
 async function loadYardMatrix() {

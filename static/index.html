@@ -169,6 +169,10 @@
           <article class="card">
             <div class="card-head">
               <div class="card-title"><span class="mini-badge-icon">⚓</span>Bảng Xếp Hạng Hãng Tàu</div>
+              <button class="btn-toggle-view" id="toggleShippingViewBtn" title="Chuyển đổi hiển thị Top 5 / Toàn bộ">
+                <span id="shippingToggleTxt">Xem tất cả (12)</span>
+                <svg id="shippingToggleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
             </div>
             <div class="table-wrap">
               <table class="data-table" id="tableOverviewShipping">
@@ -176,17 +180,27 @@
                 <tbody><tr><td colspan="5" style="text-align:center">Đang nạp...</td></tr></tbody>
               </table>
             </div>
+            <div class="table-footer-action">
+              <button class="link-btn" id="toggleShippingViewBtnBottom">Xem toàn bộ 12 hãng tàu ➔</button>
+            </div>
           </article>
 
           <article class="card">
             <div class="card-head">
               <div class="card-title"><span class="mini-badge-icon teal">▥</span>Bảng Xếp Hạng Loại Container</div>
+              <button class="btn-toggle-view" id="toggleTypeViewBtn" title="Chuyển đổi hiển thị Top 5 / Toàn bộ">
+                <span id="typeToggleTxt">Xem tất cả (6)</span>
+                <svg id="typeToggleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
             </div>
             <div class="table-wrap">
               <table class="data-table" id="tableOverviewType">
                 <thead><tr><th>#</th><th>Loại cont</th><th>Số Cont</th><th>TEU</th><th>Tỷ trọng</th></tr></thead>
                 <tbody><tr><td colspan="5" style="text-align:center">Đang nạp...</td></tr></tbody>
               </table>
+            </div>
+            <div class="table-footer-action">
+              <button class="link-btn" id="toggleTypeViewBtnBottom">Xem toàn bộ 6 loại container ➔</button>
             </div>
           </article>
         </div>

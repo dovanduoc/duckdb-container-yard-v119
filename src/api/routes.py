@@ -77,8 +77,7 @@ def get_dashboard_overview(date: Optional[str] = None):
         kpi_df, highest_yard_df = get_overview_kpis(selected_date)
         yard_util_df = get_yard_utilization_by_date(selected_date)
         full_shipping_df = get_shipping_line_ranking(selected_date=selected_date)
-        shipping_df = full_shipping_df.head(5)
-        cont_type_df = get_container_type_teu_ranking(selected_date=selected_date).head(5)
+        full_type_df = get_container_type_teu_ranking(selected_date=selected_date)
         overloaded_df = get_overloaded_yards(selected_date, threshold=95)
         upcoming_df = get_upcoming_overdue_containers(overdue_threshold_days=30, warning_days=5, selected_date=selected_date).head(5)
 
@@ -100,8 +99,8 @@ def get_dashboard_overview(date: Optional[str] = None):
                 "highest_yard_name": kpi_dict.get("Bãi có tỷ lệ sử dụng cao nhất", "-"),
                 "highest_utilization": kpi_dict.get("Tỷ lệ sử dụng cao nhất (%)", 0.0)
             },
-            "shipping_ranking": df_to_clean_json(shipping_df),
-            "container_type_ranking": df_to_clean_json(cont_type_df),
+            "shipping_ranking": df_to_clean_json(full_shipping_df),
+            "container_type_ranking": df_to_clean_json(full_type_df),
             "overloaded_yards": df_to_clean_json(overloaded_df),
             "upcoming_overdue": df_to_clean_json(upcoming_df)
         }
