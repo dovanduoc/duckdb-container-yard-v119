@@ -13,50 +13,34 @@ from src.core.duckdb_engine import get_connection
 
 
 def resolve_analysis_date(selected_date=None):
-    """Xác định và chuẩn hóa ngày phân tích (mặc định lấy ngày mới nhất trong CSDL)."""
+    """Xác định và chuẩn hóa ngày phân tích (mặc định lấy ngày mới nhất có số liệu trong CSDL)."""
     con = get_connection()
-    if selected_date is None:
-        res = con.execute("SELECT MAX(ngay) FROM v_daily_yard_capacity").fetchone()
-        return res[0] if res and res[0] else date(2026, 8, 14)
+    res = con.execute("SELECT MIN(ngay), MAX(ngay) FROM v_daily_yard_capacity").fetchone()
+    min_d = res[0] if res and res[0] else date(2025, 8, 15)
+    max_d = res[1] if res and res[1] else date(2026, 8, 14)
+
+    if selected_date is None or str(selected_date).strip() == "":
+        return max_d
+
     try:
         parsed_date = con.execute("SELECT CAST(? AS DATE)", [selected_date]).fetchone()[0]
-        return parsed_date
     except Exception:
-        return pd.to_datetime(selected_date).date()
+        try:
+            parsed_date = pd.to_datetime(selected_date).date()
+        except Exception:
+            return max_d
+
+    if parsed_date > max_d:
+        return max_d
+    if parsed_date < min_d:
+        return min_d
+
+    return parsed_date
 
 
 def validate_selected_date(selected_date):
-    """Kiểm tra và chuẩn hóa ngày phân tích có tồn tại trong dữ liệu."""
-    con = get_connection()
-    try:
-        parsed_date = con.execute("""
-            SELECT CAST(? AS DATE)
-        """, [selected_date]).fetchone()[0]
-    except Exception:
-        raise ValueError(
-            "Ngày không hợp lệ. Vui lòng nhập theo định dạng YYYY-MM-DD."
-        )
-
-    date_exists = con.execute("""
-        SELECT COUNT(*)
-        FROM v_daily_yard_capacity
-        WHERE ngay = ?
-    """, [parsed_date]).fetchone()[0]
-
-    if date_exists == 0:
-        date_range = con.execute("""
-            SELECT
-                MIN(ngay) AS min_date,
-                MAX(ngay) AS max_date
-            FROM v_daily_yard_capacity
-        """).fetchone()
-
-        raise ValueError(
-            f"Ngày {parsed_date} không có trong dữ liệu. "
-            f"Khoảng ngày hiện có là {date_range[0]} đến {date_range[1]}."
-        )
-
-    return parsed_date
+    """Kiểm tra và chuẩn hóa ngày phân tích (tự động fallback về ngày có số liệu để luôn hiển thị dashboard)."""
+    return resolve_analysis_date(selected_date)
 
 
 def validate_warning_threshold(warning_threshold):
