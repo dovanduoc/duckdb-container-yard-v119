@@ -110,16 +110,39 @@ def get_dashboard_overview(date: Optional[str] = None):
 
 @api_router.get("/yard-matrix")
 def get_yard_heatmap_matrix(date: Optional[str] = None):
-    """Lấy danh sách 8 khu vực bãi phục vụ hiển thị Sơ đồ Mặt Bằng Bãi Cảng 2D."""
+    """Lấy danh sách 8 Block bãi Khu B (Terminal B - Cát Lái dẫn ra Cổng B) phục vụ hiển thị Sơ đồ 2D."""
     dates_df = get_available_analysis_dates()
     max_date = str(dates_df.loc[0, "max_date"]) if not dates_df.empty else "2026-08-14"
     selected_date = date if date else max_date
 
+    terminal_b_mapping = {
+        "YA01": {"block_code": "Block B1", "terminal_name": "Block B1 - Hàng Xuất Dãy 1", "sub": "B1.1 - B1.4 • Khẩu độ RTG 6+1"},
+        "YA02": {"block_code": "Block B2", "terminal_name": "Block B2 - Hàng Xuất Dãy 2", "sub": "B2.1 - B2.6 • Khẩu độ RTG 6+1"},
+        "YA03": {"block_code": "Block B3", "terminal_name": "Block B3 - Bãi Reefer Lạnh", "sub": "R_B1 - R_B4 • Giàn cắm điện lạnh"},
+        "YA04": {"block_code": "Block B4", "terminal_name": "Block B4 - Cont Tuyến Á - Âu", "sub": "B4.1 - B4.6 • Tuyến Quốc Tế"},
+        "YA05": {"block_code": "Block B5", "terminal_name": "Block B5 - Cont Tuyến Nội Địa", "sub": "B5.1 - B5.6 • Cont Nội Á / Nội Địa"},
+        "YA06": {"block_code": "Block B6", "terminal_name": "Block B6 - Bãi Chuyển Tải", "sub": "B6.1 - B6.4 • Transshipment Hub"},
+        "YA07": {"block_code": "Block B7", "terminal_name": "Block B7 - Bãi Hàng DG/OOG", "sub": "B7.1 - B7.4 • Hàng Quá Khổ / Nguy Hiểm"},
+        "YA08": {"block_code": "Block B8", "terminal_name": "Block B8 - Bãi Đệm Chuyển Bãi", "sub": "B8.1 - B8.4 • Đệm Giao Nhận Cổng B"}
+    }
+
     try:
         yard_df = get_yard_utilization_by_date(selected_date)
+        blocks_data = df_to_clean_json(yard_df)
+        for b in blocks_data:
+            code = b.get("yard_code", "")
+            mapping = terminal_b_mapping.get(code, {})
+            b["block_code"] = mapping.get("block_code", code)
+            b["terminal_block_name"] = mapping.get("terminal_name", b.get("yard_name", ""))
+            b["block_sub"] = mapping.get("sub", "")
+            b["terminal"] = "Khu B (Terminal B - Cát Lái)"
+            b["gate_connection"] = "Cổng B (Gate 2 - Giao Nhận Hàng Xuất)"
+
         return {
             "selected_date": str(selected_date),
-            "blocks": df_to_clean_json(yard_df)
+            "terminal": "Khu B (Terminal B - SNP Cát Lái)",
+            "gate_exit": "Cổng B (Gate 2)",
+            "blocks": blocks_data
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

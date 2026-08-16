@@ -244,18 +244,34 @@
     </section>
 
     <!-- =========================================================================
-         VIEW 2: SƠ ĐỒ BÃI 2D (YARD HEATMAP 8 BLOCKS)
+         VIEW 2: SƠ ĐỒ BÃI 2D (SNP CÁT LÁI 2D VECTOR MAP & HEATMAP)
          ========================================================================= -->
     <section class="view-panel" id="view-yard">
+      <!-- Sơ đồ Mặt bằng Cát Lái 2D Interactive Vector SVG -->
       <article class="card">
         <div class="card-head">
-          <div class="card-title">🏗️ Sơ Đồ Mặt Bằng Bãi Cảng 2D (8 Khu Vực A1 - D2)</div>
-          <div style="display:flex;gap:12px;font-size:11px;font-weight:700">
+          <div class="card-title">⚓ Sơ Đồ Không Gian Mặt Bằng Phân Khu B (Terminal B - SNP Cát Lái) • 8 Block B1 - B8 Kết Nối Cổng B</div>
+          <div style="display:flex;align-items:center;gap:14px;font-size:11px;font-weight:700">
             <span style="color:#047857">● An toàn (&lt;70%)</span>
             <span style="color:#0369A1">● Mức cao (70-84%)</span>
             <span style="color:#B45309">● Cảnh báo (85-94%)</span>
             <span style="color:#B91C1C">● Quá tải (&ge;95%)</span>
           </div>
+        </div>
+        <div class="card-body" style="padding:10px 14px">
+          <div class="catlai-map-wrapper">
+            <svg id="catlaiSvgMap" class="catlai-svg-map" viewBox="0 0 960 490" xmlns="http://www.w3.org/2000/svg">
+              <!-- Render động SVG bởi JavaScript -->
+            </svg>
+            <div id="catlaiMapTooltip" class="catlai-tooltip"></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Lưới 8 Thẻ Phân Khu Bãi Container -->
+      <article class="card">
+        <div class="card-head">
+          <div class="card-title">🏗️ Danh Sách Chỉ Số Phân Bổ 8 Block Bãi Container Khu B (Terminal B)</div>
         </div>
         <div class="card-body">
           <div class="yard-grid-4" id="yardHeatmapContainer">
@@ -264,8 +280,9 @@
         </div>
       </article>
 
+      <!-- Bảng dữ liệu chi tiết -->
       <article class="card">
-        <div class="card-head"><div class="card-title">📊 Bảng Chi Tiết Tình Trạng Sử Dụng 8 Bãi Cảng</div></div>
+        <div class="card-head"><div class="card-title">📊 Bảng Chi Tiết Tình Trạng Sử Dụng 8 Block Bãi Khu B (Terminal B)</div></div>
         <div class="table-wrap">
           <table class="data-table" id="tableYardDetail">
             <thead><tr><th>Mã Bãi</th><th>Tên Bãi</th><th>Sức chứa tối đa (TEU)</th><th>Đã sử dụng (TEU)</th><th>Tỷ lệ (%)</th><th>Trạng thái</th></tr></thead>

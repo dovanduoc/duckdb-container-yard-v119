@@ -34,3 +34,7 @@ share/python-wheels/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Benchmark Big Data files (> 100MB)
+data/benchmark/container_*.csv
+data/benchmark/container_*.parquet

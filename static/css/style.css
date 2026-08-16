@@ -722,6 +722,94 @@ table.data-table td.down { color: var(--red); font-weight: 750; }
 .fill-warn { background: linear-gradient(90deg, #FBBF24, #F59E0B); }
 .fill-over { background: linear-gradient(90deg, #F87171, #EF4444); }
 
+/* ==========================================================================
+   CAT LAI PORT 2D VECTOR MAP STYLES
+   ========================================================================== */
+.catlai-map-wrapper {
+  position: relative;
+  width: 100%;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+
+.catlai-svg-map {
+  width: 100%;
+  height: auto;
+  min-height: 420px;
+  display: block;
+  user-select: none;
+}
+
+/* Map interactive blocks */
+.catlai-block-group {
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.catlai-block-group:hover {
+  filter: brightness(1.06) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.2));
+}
+
+.catlai-block-group:hover rect.catlai-block-bg {
+  stroke-width: 2.5px;
+}
+
+.catlai-block-group.pulse rect.catlai-block-bg {
+  animation: pulseOverload 1.8s infinite ease-in-out;
+}
+
+@keyframes pulseOverload {
+  0%, 100% { stroke-opacity: 1; stroke-width: 2px; }
+  50% { stroke-opacity: 0.3; stroke-width: 3.5px; }
+}
+
+/* Map Tooltip */
+.catlai-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: #071F3D;
+  color: #FFFFFF;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 11.5px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  z-index: 9999;
+  opacity: 0;
+  transform: translate(-50%, -120%);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.catlai-tooltip.show {
+  opacity: 1;
+}
+
+.catlai-tooltip-title {
+  font-weight: 800;
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: #38BDF8;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.catlai-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 3px;
+  font-size: 11px;
+  color: #CBD5E1;
+}
+
+.catlai-tooltip-row strong {
+  color: #FFFFFF;
+}
+
 /* Container Timeline Stepper */
 .timeline-stepper {
   position: relative;
