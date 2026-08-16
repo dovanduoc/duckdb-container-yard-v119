@@ -1,0 +1,91 @@
+# Khuyến nghị đồng bộ logic phân tích theo ngày - V119
+
+Tài liệu này ghi nhận khuyến nghị sau khi rà soát source V119. Đây là khuyến nghị thiết kế/logic, chưa phải thay đổi source code.
+
+## R2. Chuẩn hóa khái niệm "container tồn tại ngày A" theo lát cắt thời gian
+
+### 1. Quy tắc nghiệp vụ
+
+Một lượt container được xem là đang tồn tại ngày A khi đồng thời thỏa mãn:
+
+- `ngày A > ngày Gate In`; và
+- `ngày A < ngày Gate Out`, hoặc `Gate Out IS NULL`.
+
+Biểu diễn ở mức ngày:
+
+```sql
+CAST(gate_in_ts AS DATE) < selected_date
+AND (
+    gate_out_ts IS NULL
+    OR selected_date < CAST(gate_out_ts AS DATE)
+)
+```
+
+Lưu ý: đây là quy tắc đúng theo phạm vi nghiệp vụ đã chốt cho bài demo. Nếu sau này cần tính container tồn ngay trong ngày Gate In hoặc ngày Gate Out thì phải xác định lại quy ước bao đóng khoảng thời gian.
+
+### 2. Phạm vi áp dụng
+
+Logic as-of date phải được áp dụng thống nhất cho mọi chỉ số và bảng phân tích theo ngày, gồm:
+
+- số container đang tồn tại ngày A;
+- tổng TEU tồn tại ngày A;
+- số container quá hạn tại ngày A;
+- số ngày lưu bãi tại ngày A;
+- xếp hạng hãng tàu theo lượng container/TEU tồn tại ngày A;
+- cơ cấu loại container tại ngày A;
+- các cảnh báo liên quan đến container tồn tại ngày A.
+
+Không nên trộn dữ liệu của ngày A với trạng thái hiện tại (`hist = 'N'` hoặc `CURRENT_TIMESTAMP`) trong cùng một Dashboard lịch sử.
+
+### 3. Tính số ngày lưu bãi theo ngày phân tích
+
+Với container tồn tại ngày A, thời gian lưu bãi phải được tính theo `selected_date`, không dùng `CURRENT_TIMESTAMP`:
+
+```sql
+DATE_DIFF(
+    'day',
+    CAST(gate_in_ts AS DATE),
+    selected_date
+) AS dwell_days
+```
+
+Nếu cần độ chính xác đến giờ/phút thì chuyển sang so sánh timestamp, nhưng phải giữ cùng nguyên tắc lát cắt thời gian.
+
+### 4. Tách rõ hai ngữ nghĩa trong service/API
+
+Khuyến nghị tách rõ:
+
+- `current`: trạng thái hiện tại của hệ thống;
+- `as_of_date`: trạng thái tại một ngày lịch sử được chọn.
+
+Ví dụ có thể bổ sung các hàm hoặc tham số:
+
+```text
+get_containers_as_of_date(selected_date)
+get_overview_kpis(selected_date)
+get_shipping_line_ranking(selected_date)
+get_container_type_teu_ranking(selected_date)
+```
+
+Nếu một hàm nhận `selected_date`, toàn bộ dữ liệu trả về từ hàm đó phải cùng tham chiếu đến ngày này.
+
+### 5. Vị trí bãi tại ngày A
+
+Nếu cần xác định container nằm ở bãi nào tại ngày A, không nên luôn lấy `container.yard_area_id` hiện tại/cuối cùng. Cần xác định sự kiện gần nhất có `event_ts <= ngày A` trong `container_event`, sau đó suy ra `yard_area_id` có hiệu lực tại thời điểm đó.
+
+Điều này đặc biệt quan trọng khi container đã phát sinh nhiều lần `YARD_MOVE`.
+
+### 6. Kiểm thử bắt buộc
+
+Nên bổ sung các ca kiểm thử tối thiểu:
+
+1. `selected_date <= gate_in_date` -> không được tính là tồn.
+2. `gate_in_date < selected_date < gate_out_date` -> được tính là tồn.
+3. `gate_out_ts IS NULL` và `selected_date > gate_in_date` -> được tính là tồn.
+4. `selected_date >= gate_out_date` -> không được tính là tồn.
+5. KPI số container, TEU, dwell và ranking cùng một `selected_date` phải dùng chung tập container as-of-date.
+6. Nếu có `YARD_MOVE`, vị trí bãi tại ngày A phải lấy theo sự kiện gần nhất trước hoặc tại mốc phân tích.
+
+### 7. Mức ưu tiên
+
+**P1 - cần xử lý trước khi khóa source dùng để bảo vệ**, vì đây là vấn đề ngữ nghĩa dữ liệu và ảnh hưởng trực tiếp đến tính đúng đắn của Dashboard khi người dùng chọn ngày lịch sử.
