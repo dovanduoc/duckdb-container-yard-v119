@@ -438,18 +438,25 @@ function renderOverviewTypeTable() {
   if (bottomBtn) bottomBtn.textContent = isFull ? '▲ Thu gọn về Top 5' : `Xem toàn bộ ${total} loại container ➔`;
 }
 
+let cachedYardBlocks = [];
+let digitalTwinLoaded = false;
+
 async function loadYardMatrix() {
   try {
     const res = await fetch(`/api/yard-matrix?date=${AppState.analysisDate}`);
     const data = await res.json();
+    cachedYardBlocks = data.blocks || [];
     const container = document.getElementById('yardHeatmapContainer');
     const tbody = document.querySelector('#tableYardDetail tbody');
 
     // 1. Render Sơ Đồ Không Gian Mặt Bằng Khu B (Terminal B) 8 Block B1 - B8 Vector SVG
-    renderCatLaiSvgMap(data.blocks || []);
+    renderCatLaiSvgMap(cachedYardBlocks);
 
-    // 2. Render 8 Block cards chi tiết của Khu B
-    container.innerHTML = data.blocks.map(block => {
+    // 2. Cập nhật Bản Đồ Số 160ha nếu đã nạp hoặc nạp sẵn
+    await initDigitalTwinMap(cachedYardBlocks);
+
+    // 3. Render 8 Block cards chi tiết của Khu B
+    container.innerHTML = cachedYardBlocks.map(block => {
       let pillClass = 'pill-safe';
       let fillClass = 'fill-safe';
       let statusText = 'AN TOÀN';
@@ -487,8 +494,8 @@ async function loadYardMatrix() {
       `;
     }).join('');
 
-    // 3. Render Bảng Chi Tiết 8 Block Khu B
-    tbody.innerHTML = data.blocks.map(b => `
+    // 4. Render Bảng Chi Tiết 8 Block Khu B
+    tbody.innerHTML = cachedYardBlocks.map(b => `
       <tr>
         <td><strong style="color:var(--primary)">${b.block_code || b.yard_code}</strong></td>
         <td><strong>${b.terminal_block_name || b.yard_name}</strong></td>
@@ -504,269 +511,151 @@ async function loadYardMatrix() {
   }
 }
 
-function renderCatLaiSvgMap(blocks) {
-  const svg = document.getElementById('catlaiSvgMap');
+async function initDigitalTwinMap(blocks) {
+  const dtContainer = document.getElementById('catlaiDigitalTwinContainer');
   const tooltip = document.getElementById('catlaiMapTooltip');
-  if (!svg) return;
+  if (!dtContainer) return;
 
-  // Map tra cứu dữ liệu động theo yard_code
-  const blockMap = {};
-  blocks.forEach(b => { blockMap[b.yard_code] = b; });
+  if (!digitalTwinLoaded) {
+    try {
+      const res = await fetch('/static/img/catlaiport_map_styled.svg');
+      const svgText = await res.text();
+      dtContainer.innerHTML = svgText;
+      digitalTwinLoaded = true;
 
-  // Định nghĩa vị trí không gian 8 Block bãi Khu B (Terminal B - Cát Lái)
-  const yardLayout = [
-    // Hàng 1 (Tiếp giáp tuyến Cầu tàu Berths 1 - 8 bên sông Đồng Nai)
-    { code: 'YA01', blockCode: 'BLOCK B1', blockName: 'Block B1 - Hàng Xuất Dãy 1', sub: 'B1.1 - B1.4 • Khẩu độ RTG 6+1', x: 40, y: 110, w: 200, h: 100 },
-    { code: 'YA02', blockCode: 'BLOCK B2', blockName: 'Block B2 - Hàng Xuất Dãy 2', sub: 'B2.1 - B2.6 • Khẩu độ RTG 6+1', x: 260, y: 110, w: 210, h: 100 },
-    { code: 'YA03', blockCode: 'BLOCK B3', blockName: 'Block B3 - Bãi Reefer Lạnh', sub: 'R_B1 - R_B4 • Giàn cắm điện lạnh', x: 490, y: 110, w: 200, h: 100 },
-    { code: 'YA04', blockCode: 'BLOCK B4', blockName: 'Block B4 - Cont Tuyến Á-Âu', sub: 'B4.1 - B4.6 • Tuyến Quốc Tế', x: 710, y: 110, w: 210, h: 100 },
+      // Gắn sự kiện Hover & Click cho 8 Block bãi tương tác trên bản đồ số 160ha
+      dtContainer.querySelectorAll('.digital-yard-block').forEach(el => {
+        el.addEventListener('mouseenter', (e) => {
+          const code = el.dataset.yardCode;
+          const bCode = el.dataset.blockCode;
+          const name = el.dataset.yardName;
+          const sub = el.dataset.sub;
+          const util = el.dataset.util || '0';
+          const used = Number(el.dataset.used || 0).toLocaleString();
+          const max = Number(el.dataset.max || 1000).toLocaleString();
+          const status = el.dataset.status || 'AN TOÀN';
 
-    // Hàng 2 (Gần đường nội bộ & dẫn thẳng ra Cổng B Gate 2)
-    { code: 'YA05', blockCode: 'BLOCK B5', blockName: 'Block B5 - Cont Tuyến Nội Địa', sub: 'B5.1 - B5.6 • Cont Nội Á/Nội Địa', x: 40, y: 240, w: 200, h: 100 },
-    { code: 'YA06', blockCode: 'BLOCK B6', blockName: 'Block B6 - Bãi Chuyển Tải', sub: 'B6.1 - B6.4 • Transshipment Hub', x: 260, y: 240, w: 210, h: 100 },
-    { code: 'YA07', blockCode: 'BLOCK B7', blockName: 'Block B7 - Hàng DG / OOG', sub: 'B7.1 - B7.4 • Hàng Quá Khổ/Nguy Hiểm', x: 490, y: 240, w: 200, h: 100 },
-    { code: 'YA08', blockCode: 'BLOCK B8', blockName: 'Block B8 - Bãi Đệm Cổng B', sub: 'B8.1 - B8.4 • Đệm Giao Nhận Cổng B', x: 710, y: 240, w: 210, h: 100 }
-  ];
+          tooltip.innerHTML = `
+            <div class="catlai-tooltip-title">
+              <span>${bCode} (${code})</span>
+              <span style="color:${util >= 95 ? '#EF4444' : util >= 85 ? '#F59E0B' : '#10B981'}">${util}%</span>
+            </div>
+            <div style="font-size:11px;color:#E2E8F0;font-weight:700;margin-bottom:4px">${name}</div>
+            <div style="font-size:10px;color:#94A3B8;margin-bottom:6px">${sub}</div>
+            <div class="catlai-tooltip-row"><span>Phân khu:</span><strong>Khu B (Terminal B)</strong></div>
+            <div class="catlai-tooltip-row"><span>Cổng giao nhận:</span><strong>Cổng B (Gate 2)</strong></div>
+            <div class="catlai-tooltip-row"><span>Sức chứa tối đa:</span><strong>${max} TEU</strong></div>
+            <div class="catlai-tooltip-row"><span>Đã sử dụng:</span><strong>${used} TEU</strong></div>
+            <div class="catlai-tooltip-row"><span>Trạng thái:</span><strong>${status}</strong></div>
+            <div style="font-size:10px;color:#38BDF8;margin-top:6px;border-top:1px solid rgba(255,255,255,0.1);padding-top:4px;text-align:center">
+              👉 Nhấn để lọc danh sách container tại Block này
+            </div>
+          `;
+          tooltip.classList.add('show');
+        });
 
-  const getColorScheme = (util) => {
-    if (util >= 95) {
-      return { fill: '#FEF2F2', stroke: '#EF4444', text: '#B91C1C', pill: '#EF4444', label: 'QUÁ TẢI' };
-    } else if (util >= 85) {
-      return { fill: '#FFFBEB', stroke: '#F59E0B', text: '#B45309', pill: '#F59E0B', label: 'CẢNH BÁO' };
-    } else if (util >= 70) {
-      return { fill: '#F0F9FF', stroke: '#0284C7', text: '#0369A1', pill: '#0284C7', label: 'MỨC CAO' };
-    } else {
-      return { fill: '#ECFDF5', stroke: '#10B981', text: '#047857', pill: '#10B981', label: 'AN TOÀN' };
+        el.addEventListener('mousemove', (e) => {
+          const wrapper = document.querySelector('.catlai-map-wrapper');
+          if (!wrapper) return;
+          const rect = wrapper.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          tooltip.style.left = `${x}px`;
+          tooltip.style.top = `${y}px`;
+        });
+
+        el.addEventListener('mouseleave', () => {
+          tooltip.classList.remove('show');
+        });
+
+        el.addEventListener('click', async () => {
+          const bCode = el.dataset.blockCode;
+          const name = el.dataset.yardName;
+          showToast(`📦 Đang xem danh sách container tại ${bCode} (${name})...`);
+          await switchView('container');
+        });
+      });
+    } catch (err) {
+      console.error('Lỗi khi nạp SVG Digital Twin:', err);
     }
-  };
+  }
 
-  let blocksSvg = yardLayout.map(layout => {
-    const data = blockMap[layout.code] || {
-      yard_name: layout.blockName,
-      ty_le_su_dung: 0,
-      suc_chua_da_su_dung: 0,
-      suc_chua_toi_da: 1000,
-      trang_thai_su_dung: 'AN TOÀN'
-    };
-    const c = getColorScheme(data.ty_le_su_dung);
-    const isOver = data.ty_le_su_dung >= 95;
-    const progressWidth = Math.min((layout.w - 24) * (data.ty_le_su_dung / 100), layout.w - 24);
-    const displayBlockCode = layout.blockCode;
-    const displayBlockName = layout.blockName;
+  updateDigitalTwinHeatmap(blocks);
+}
 
-    return `
-      <g class="catlai-block-group ${isOver ? 'pulse' : ''}" data-yard-code="${layout.code}" data-block-code="${displayBlockCode}" data-yard-name="${displayBlockName}" data-util="${data.ty_le_su_dung}" data-used="${data.suc_chua_da_su_dung}" data-max="${data.suc_chua_toi_da}" data-status="${data.trang_thai_su_dung}" transform="translate(${layout.x}, ${layout.y})">
-        <!-- Khung nền Block bãi -->
-        <rect class="catlai-block-bg" x="0" y="0" width="${layout.w}" height="${layout.h}" rx="8" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.8" />
-        
-        <!-- Header: Tên Block B1-B8 & Status Pill -->
-        <text x="12" y="22" font-size="12.5" font-weight="900" fill="#0F172A">${displayBlockCode}</text>
-        <rect x="${layout.w - 76}" y="10" width="64" height="18" rx="4" fill="${c.pill}" opacity="0.15" />
-        <text x="${layout.w - 44}" y="23" font-size="9.5" font-weight="800" fill="${c.text}" text-anchor="middle">${c.label}</text>
-        
-        <!-- Tên Phân khu & Chức năng Dãy -->
-        <text x="12" y="40" font-size="10.5" font-weight="750" fill="#334155">${displayBlockName}</text>
-        <text x="12" y="54" font-size="9.5" fill="#64748B">${layout.sub}</text>
-        
-        <!-- Chỉ số Tỷ lệ % và Sức chứa TEU -->
-        <text x="12" y="74" font-size="16" font-weight="850" fill="${c.text}">${data.ty_le_su_dung}%</text>
-        <text x="${layout.w - 12}" y="74" font-size="10.5" font-weight="700" fill="#475569" text-anchor="end">${data.suc_chua_da_su_dung.toLocaleString()} / ${data.suc_chua_toi_da.toLocaleString()} TEU</text>
-        
-        <!-- Thanh Progress Bar -->
-        <rect x="12" y="82" width="${layout.w - 24}" height="5" rx="2.5" fill="#E2E8F0" />
-        <rect x="12" y="82" width="${Math.max(progressWidth, 4)}" height="5" rx="2.5" fill="${c.stroke}" />
-      </g>
-    `;
-  }).join('');
+function updateDigitalTwinHeatmap(blocks) {
+  const dtContainer = document.getElementById('catlaiDigitalTwinContainer');
+  if (!dtContainer || !blocks) return;
 
-  svg.innerHTML = `
-    <defs>
-      <!-- Gradient Sông Đồng Nai -->
-      <linearGradient id="riverGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#0284C7" stop-opacity="0.25" />
-        <stop offset="50%" stop-color="#38BDF8" stop-opacity="0.35" />
-        <stop offset="100%" stop-color="#0284C7" stop-opacity="0.25" />
-      </linearGradient>
-      <!-- Gradient Cầu Tàu Bê Tông -->
-      <linearGradient id="wharfGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stop-color="#475569" />
-        <stop offset="100%" stop-color="#334155" />
-      </linearGradient>
-    </defs>
+  blocks.forEach(b => {
+    const code = b.yard_code;
+    const util = b.ty_le_su_dung;
+    const pathEl = dtContainer.querySelector(`#digital-block-${code}`);
+    const badgeTxtEl = dtContainer.querySelector(`#badge-txt-${code}`);
+    const badgeGroupEl = dtContainer.querySelector(`#badge-${code}`);
 
-    <!-- 1. MẶT NƯỚC SÔNG ĐỒNG NAI (DONG NAI RIVER) -->
-    <rect x="0" y="0" width="960" height="90" fill="url(#riverGrad)" />
-    <path d="M 20 25 Q 120 15, 220 25 T 420 25 T 620 25 T 820 25 T 940 25" fill="none" stroke="#38BDF8" stroke-width="1.2" opacity="0.6" stroke-dasharray="8 6" />
-    <path d="M 40 45 Q 140 35, 240 45 T 440 45 T 640 45 T 840 45 T 920 45" fill="none" stroke="#0284C7" stroke-width="1" opacity="0.4" stroke-dasharray="6 4" />
-    <text x="50" y="28" font-size="12" font-weight="900" fill="#0369A1" letter-spacing="1">⚓ SÔNG ĐỒNG NAI (LUỒNG HÀNG HẢI CẢNG CÁT LÁI - SNP)</text>
+    if (pathEl) {
+      pathEl.dataset.util = util;
+      pathEl.dataset.used = b.suc_chua_da_su_dung;
+      pathEl.dataset.max = b.suc_chua_toi_da;
+      pathEl.dataset.status = b.trang_thai_su_dung;
 
-    <!-- 2 TÀU CONTAINER NEO ĐẬU BẾN -->
-    <!-- Tàu 1: MAERSK HANOI -->
-    <g transform="translate(140, 20)">
-      <path d="M 0 15 L 20 0 L 160 0 L 175 15 L 160 30 L 20 30 Z" fill="#1E293B" stroke="#0F172A" stroke-width="1" />
-      <rect x="30" y="4" width="22" height="10" fill="#38BDF8" rx="1" />
-      <rect x="56" y="4" width="22" height="10" fill="#EF4444" rx="1" />
-      <rect x="82" y="4" width="22" height="10" fill="#10B981" rx="1" />
-      <rect x="108" y="4" width="22" height="10" fill="#F59E0B" rx="1" />
-      <rect x="30" y="16" width="22" height="10" fill="#6366F1" rx="1" />
-      <rect x="56" y="16" width="22" height="10" fill="#EC4899" rx="1" />
-      <rect x="82" y="16" width="22" height="10" fill="#14B8A6" rx="1" />
-      <text x="145" y="20" font-size="8.5" font-weight="900" fill="#FFFFFF" text-anchor="middle">MAERSK</text>
-    </g>
+      if (util >= 95) {
+        pathEl.style.fill = '#EF4444';
+        pathEl.style.stroke = '#F87171';
+        pathEl.style.fillOpacity = '0.9';
+        pathEl.classList.add('pulse');
+      } else if (util >= 85) {
+        pathEl.style.fill = '#F59E0B';
+        pathEl.style.stroke = '#FBBF24';
+        pathEl.style.fillOpacity = '0.85';
+        pathEl.classList.remove('pulse');
+      } else if (util >= 70) {
+        pathEl.style.fill = '#0284C7';
+        pathEl.style.stroke = '#38BDF8';
+        pathEl.style.fillOpacity = '0.8';
+        pathEl.classList.remove('pulse');
+      } else {
+        pathEl.style.fill = '#10B981';
+        pathEl.style.stroke = '#34D399';
+        pathEl.style.fillOpacity = '0.75';
+        pathEl.classList.remove('pulse');
+      }
+    }
 
-    <!-- Tàu 2: COSCO SHIPPING -->
-    <g transform="translate(580, 20)">
-      <path d="M 0 15 L 20 0 L 170 0 L 185 15 L 170 30 L 20 30 Z" fill="#1E293B" stroke="#0F172A" stroke-width="1" />
-      <rect x="30" y="4" width="22" height="10" fill="#EF4444" rx="1" />
-      <rect x="56" y="4" width="22" height="10" fill="#38BDF8" rx="1" />
-      <rect x="82" y="4" width="22" height="10" fill="#F59E0B" rx="1" />
-      <rect x="108" y="4" width="22" height="10" fill="#10B981" rx="1" />
-      <rect x="30" y="16" width="22" height="10" fill="#8B5CF6" rx="1" />
-      <rect x="56" y="16" width="22" height="10" fill="#F97316" rx="1" />
-      <rect x="82" y="16" width="22" height="10" fill="#06B6D4" rx="1" />
-      <text x="150" y="20" font-size="8.5" font-weight="900" fill="#FFFFFF" text-anchor="middle">COSCO</text>
-    </g>
+    if (badgeTxtEl) {
+      const displayCode = b.block_code ? b.block_code.replace('Block ', 'B') : code;
+      badgeTxtEl.textContent = `${displayCode}: ${util}%`;
+      badgeTxtEl.setAttribute('fill', util >= 95 ? '#F87171' : util >= 85 ? '#FBBF24' : util >= 70 ? '#38BDF8' : '#34D399');
+    }
 
-    <!-- 2. TUYẾN CẦU TÀU CÁT LÁI (BERTHS 1 - 8) -->
-    <g transform="translate(30, 68)">
-      <rect x="0" y="0" width="900" height="24" rx="3" fill="url(#wharfGrad)" />
-      <!-- Phân đoạn Cầu tàu -->
-      <text x="60" y="16" font-size="10" font-weight="900" fill="#FFFFFF">BERTH 1</text>
-      <line x1="120" y1="0" x2="120" y2="24" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="2 2" />
-      <text x="175" y="16" font-size="10" font-weight="900" fill="#FFFFFF">BERTH 2</text>
-      <line x1="230" y1="0" x2="230" y2="24" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="2 2" />
-      <text x="285" y="16" font-size="10" font-weight="900" fill="#FFFFFF">BERTH 3</text>
-      <line x1="340" y1="0" x2="340" y2="24" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="2 2" />
-      <text x="395" y="16" font-size="10" font-weight="900" fill="#FFFFFF">BERTH 4</text>
-      <line x1="450" y1="0" x2="450" y2="24" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="2 2" />
-      <text x="505" y="16" font-size="10" font-weight="900" fill="#FFFFFF">BERTH 5</text>
-      <line x1="560" y1="0" x2="560" y2="24" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="2 2" />
-      <text x="615" y="16" font-size="10" font-weight="900" fill="#FFFFFF">BERTH 6</text>
-      <line x1="670" y1="0" x2="670" y2="24" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="2 2" />
-      <text x="725" y="16" font-size="10" font-weight="900" fill="#FFFFFF">BERTH 7</text>
-      <line x1="780" y1="0" x2="780" y2="24" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="2 2" />
-      <text x="835" y="16" font-size="10" font-weight="900" fill="#FFFFFF">BERTH 8</text>
-
-      <!-- 4 CẨU BỜ STS CRANES (Màu vàng cam) -->
-      <g transform="translate(180, -14)"><rect x="0" y="0" width="12" height="14" fill="#F59E0B" rx="1"/><line x1="6" y1="-8" x2="6" y2="0" stroke="#F59E0B" stroke-width="3"/><line x1="-10" y1="-8" x2="22" y2="-8" stroke="#F59E0B" stroke-width="2.5"/><text x="6" y="10" font-size="7" font-weight="850" fill="#000" text-anchor="middle">QC1</text></g>
-      <g transform="translate(250, -14)"><rect x="0" y="0" width="12" height="14" fill="#F59E0B" rx="1"/><line x1="6" y1="-8" x2="6" y2="0" stroke="#F59E0B" stroke-width="3"/><line x1="-10" y1="-8" x2="22" y2="-8" stroke="#F59E0B" stroke-width="2.5"/><text x="6" y="10" font-size="7" font-weight="850" fill="#000" text-anchor="middle">QC2</text></g>
-      <g transform="translate(620, -14)"><rect x="0" y="0" width="12" height="14" fill="#F59E0B" rx="1"/><line x1="6" y1="-8" x2="6" y2="0" stroke="#F59E0B" stroke-width="3"/><line x1="-10" y1="-8" x2="22" y2="-8" stroke="#F59E0B" stroke-width="2.5"/><text x="6" y="10" font-size="7" font-weight="850" fill="#000" text-anchor="middle">QC3</text></g>
-      <g transform="translate(700, -14)"><rect x="0" y="0" width="12" height="14" fill="#F59E0B" rx="1"/><line x1="6" y1="-8" x2="6" y2="0" stroke="#F59E0B" stroke-width="3"/><line x1="-10" y1="-8" x2="22" y2="-8" stroke="#F59E0B" stroke-width="2.5"/><text x="6" y="10" font-size="7" font-weight="850" fill="#000" text-anchor="middle">QC4</text></g>
-    </g>
-
-    <!-- 3. ĐƯỜNG NỘI BỘ VÀ LÀN XE TRUCK / RTG TRACKS KẾT NỐI KHU B -->
-    <rect x="30" y="96" width="900" height="8" fill="#CBD5E1" rx="2" />
-    <line x1="40" y1="100" x2="920" y2="100" stroke="#FFFFFF" stroke-width="1.5" stroke-dasharray="10 8" />
-
-    <rect x="30" y="218" width="900" height="14" fill="#CBD5E1" rx="2" />
-    <line x1="40" y1="225" x2="920" y2="225" stroke="#FFFFFF" stroke-width="1.5" stroke-dasharray="10 8" />
-
-    <rect x="30" y="348" width="900" height="12" fill="#CBD5E1" rx="2" />
-    <line x1="40" y1="354" x2="920" y2="354" stroke="#FFFFFF" stroke-width="1.5" stroke-dasharray="10 8" />
-
-    <!-- 4. 8 BLOCK BÃI CONTAINER KHU B (TERMINAL B) -->
-    ${blocksSvg}
-
-    <!-- 5. KHU VỰC CỔNG B (GATE 2) & TT ĐIỀU PHỐI KHU B -->
-    <g transform="translate(30, 370)">
-      <!-- Nền khu Cổng B -->
-      <rect x="0" y="0" width="900" height="105" rx="8" fill="#0F172A" opacity="0.04" />
-      <rect x="0" y="0" width="900" height="105" rx="8" fill="none" stroke="#CBD5E1" stroke-width="1" />
-
-      <!-- CỔNG B (GATE 2 - CỔNG GIAO NHẬN CHÍNH TERMINAL B) -->
-      <g transform="translate(40, 14)">
-        <rect x="0" y="0" width="380" height="46" rx="6" fill="#1E293B" stroke="#F59E0B" stroke-width="1.5" />
-        <text x="190" y="20" font-size="12" font-weight="900" fill="#FBBF24" text-anchor="middle">🚧 CỔNG B (GATE 2) • GIAO NHẬN HÀNG XUẤT KHU B</text>
-        <text x="190" y="36" font-size="9" fill="#94A3B8" text-anchor="middle">Gate In 8 Làn Tự Động • Trạm Cân Điện Tử 1-4 • Kiểm Hóa Hải Quan</text>
-      </g>
-
-      <!-- TT ĐIỀU PHỐI BÃI TERMINAL B -->
-      <g transform="translate(440, 14)">
-        <rect x="0" y="0" width="420" height="46" rx="6" fill="#0B132B" stroke="#0284C7" stroke-width="1.2" />
-        <text x="210" y="20" font-size="11.5" font-weight="900" fill="#38BDF8" text-anchor="middle">🏢 TRUNG TÂM ĐIỀU HÀNH PHÂN KHU B (TERMINAL B OPS)</text>
-        <text x="210" y="36" font-size="9" font-weight="700" fill="#10B981" text-anchor="middle">● Kết nối DuckDB Realtime OLAP • Điều phối cẩu RTG Block B1 - B8</text>
-      </g>
-
-      <!-- Làn đường ra Cổng B nối Nguyễn Thị Định -->
-      <g transform="translate(40, 68)">
-        <rect x="0" y="0" width="820" height="24" rx="4" fill="#334155" />
-        <text x="410" y="16" font-size="10" font-weight="800" fill="#FFFFFF" text-anchor="middle">➔ LUỒNG XE ĐẦU KÉO TỪ 8 BLOCK B1-B8 ➔ RA CỔNG B ➔ TRỤC ĐƯỜNG NGUYỄN THỊ ĐỊNH (VÀNH ĐAI 2)</text>
-      </g>
-    </g>
-  `;
-
-  // Gắn sự kiện Hover Tooltip và Click Chuyển Ngữ Cảnh cho từng Block B1-B8
-  svg.querySelectorAll('.catlai-block-group').forEach(group => {
-    group.addEventListener('mouseenter', (e) => {
-      const code = group.dataset.yardCode;
-      const bCode = group.dataset.blockCode;
-      const name = group.dataset.yardName;
-      const util = group.dataset.util;
-      const used = Number(group.dataset.used).toLocaleString();
-      const max = Number(group.dataset.max).toLocaleString();
-      const status = group.dataset.status;
-
-      tooltip.innerHTML = `
-        <div class="catlai-tooltip-title">
-          <span>${bCode} (${code})</span>
-          <span style="color:${util >= 95 ? '#EF4444' : util >= 85 ? '#F59E0B' : '#10B981'}">${util}%</span>
-        </div>
-        <div style="font-size:11px;color:#E2E8F0;font-weight:700;margin-bottom:4px">${name}</div>
-        <div class="catlai-tooltip-row"><span>Phân khu:</span><strong>Khu B (Terminal B)</strong></div>
-        <div class="catlai-tooltip-row"><span>Cổng giao nhận:</span><strong>Cổng B (Gate 2)</strong></div>
-        <div class="catlai-tooltip-row"><span>Sức chứa tối đa:</span><strong>${max} TEU</strong></div>
-        <div class="catlai-tooltip-row"><span>Đã sử dụng:</span><strong>${used} TEU</strong></div>
-        <div class="catlai-tooltip-row"><span>Trạng thái vận hành:</span><strong>${status}</strong></div>
-        <div style="font-size:10px;color:#94A3B8;margin-top:6px;border-top:1px solid rgba(255,255,255,0.1);padding-top:4px;text-align:center">
-          👉 Nhấn để lọc danh sách container tại Block này
-        </div>
-      `;
-      tooltip.classList.add('show');
-    });
-
-    group.addEventListener('mousemove', (e) => {
-      const wrapper = document.querySelector('.catlai-map-wrapper');
-      if (!wrapper) return;
-      const rect = wrapper.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      tooltip.style.left = `${x}px`;
-      tooltip.style.top = `${y}px`;
-    });
-
-    group.addEventListener('mouseleave', () => {
-      tooltip.classList.remove('show');
-    });
-
-    group.addEventListener('click', async () => {
-      const bCode = group.dataset.blockCode;
-      const name = group.dataset.yardName;
-      showToast(`📦 Đang xem danh sách container tại ${bCode} (${name})...`);
-      await switchView('container');
-    });
+    if (badgeGroupEl) {
+      const rect = badgeGroupEl.querySelector('rect');
+      if (rect) {
+        rect.setAttribute('stroke', util >= 95 ? '#EF4444' : util >= 85 ? '#F59E0B' : util >= 70 ? '#38BDF8' : '#34D399');
+      }
+    }
   });
 }
 
 function setYardMapMode(mode) {
   const svgMap = document.getElementById('catlaiSvgMap');
-  const dtFrame = document.getElementById('catlaiDigitalTwinFrame');
-  const legend = document.getElementById('yardHeatmapLegend');
+  const dtContainer = document.getElementById('catlaiDigitalTwinContainer');
   const title = document.getElementById('yardMapTitle');
   const btnB = document.getElementById('btnModeTerminalB');
   const btnDT = document.getElementById('btnModeDigitalTwin');
 
   if (mode === 'digital-twin') {
     if (svgMap) svgMap.style.display = 'none';
-    if (dtFrame) dtFrame.style.display = 'block';
-    if (legend) legend.style.display = 'none';
-    if (title) title.innerText = '🗺️ Bản Đồ Số Không Gian 160 Hecta Cảng Tân Cảng - Cát Lái (SNP Digital Twin GIS Map)';
+    if (dtContainer) dtContainer.style.display = 'block';
+    if (title) title.innerText = '🗺️ Bản Đồ Số 160ha Cảng Cát Lái (SNP Digital Twin GIS) • Tương Tác 8 Block Khu B & Heatmap Realtime';
     if (btnB) { btnB.className = 'btn btn-secondary btn-sm'; }
     if (btnDT) { btnDT.className = 'btn btn-primary btn-sm'; }
-    showToast('🗺️ Đang hiển thị Bản Đồ Số Toàn Cảnh 160 Hecta Cảng Cát Lái');
+    updateDigitalTwinHeatmap(cachedYardBlocks);
+    showToast('🗺️ Đang hiển thị Bản Đồ Số GIS 160ha Cát Lái (Có tương tác Heatmap 8 Block)');
   } else {
     if (svgMap) svgMap.style.display = 'block';
-    if (dtFrame) dtFrame.style.display = 'none';
-    if (legend) legend.style.display = 'flex';
+    if (dtContainer) dtContainer.style.display = 'none';
     if (title) title.innerText = '⚓ Sơ Đồ Không Gian Mặt Bằng Phân Khu B (Terminal B - SNP Cát Lái) • 8 Block B1 - B8 Kết Nối Cổng B';
     if (btnB) { btnB.className = 'btn btn-primary btn-sm'; }
     if (btnDT) { btnDT.className = 'btn btn-secondary btn-sm'; }
