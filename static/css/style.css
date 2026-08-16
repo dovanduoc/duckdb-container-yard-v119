@@ -1106,6 +1106,40 @@ table.data-table td.down { color: var(--red); font-weight: 750; }
 /* ==========================================================================
    ENTERPRISE DATA GRID ENGINE: COLUMN FILTER & CONTEXT MENU
    ========================================================================== */
+.grid-sortable-th {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+
+.grid-sortable-th:hover {
+  background: rgba(2, 132, 199, 0.18) !important;
+  color: #38BDF8 !important;
+}
+
+.grid-sort-icon {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0.55;
+  transition: all 0.15s ease;
+}
+
+.grid-sortable-th.sorted-asc .grid-sort-icon {
+  color: #38BDF8;
+  opacity: 1;
+  font-weight: 900;
+  transform: scale(1.2);
+}
+
+.grid-sortable-th.sorted-desc .grid-sort-icon {
+  color: #38BDF8;
+  opacity: 1;
+  font-weight: 900;
+  transform: scale(1.2);
+}
+
 .grid-filter-row th {
   background: var(--surface-2, #0F172A) !important;
   padding: 4px 6px !important;

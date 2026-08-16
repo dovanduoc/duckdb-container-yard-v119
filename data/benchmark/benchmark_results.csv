@@ -1,2 +1,2 @@
 thoi_diem,so_dong,csv_size_mb,parquet_size_mb,ty_le_tiet_kiem_dung_luong,csv_scan_sec,parquet_scan_sec,toc_do_quet_nhanh_hon,csv_agg_sec,parquet_agg_sec,toc_do_tong_hop_nhanh_hon
-2026-08-16 16:05:34,1000,0.06,0.02,2.3x,0.1192,0.0057,21.0x,0.1302,0.0029,45.2x
+2026-08-16 16:06:26,1000,0.06,0.02,2.3x,0.1366,0.0066,20.8x,0.1271,0.0024,52.4x

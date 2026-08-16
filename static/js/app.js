@@ -1421,7 +1421,34 @@ const DataGridManager = {
     const ths = Array.from(headerRow.querySelectorAll('th'));
     if (ths.length === 0) return;
 
-    // Kiểm tra xem đã có dòng filter-row chưa
+    // 1. Gắn tính năng SẮP XẾP / ORDER THEO CỘT (Sorting) cho dòng tiêu đề đầu tiên
+    ths.forEach((th, colIdx) => {
+      const colText = th.textContent.trim().toLowerCase();
+      // Không gán sort cho cột "#", "Thao tác", "Lộ trình"
+      if (colText === '#' || colText.includes('thao tác') || colText.includes('lộ trình')) {
+        return;
+      }
+
+      th.classList.add('grid-sortable-th');
+      th.title = 'Nhấn để sắp xếp Tăng dần / Giảm dần / Mặc định';
+
+      if (!th.querySelector('.grid-sort-icon')) {
+        const icon = document.createElement('span');
+        icon.className = 'grid-sort-icon';
+        icon.textContent = '↕';
+        th.appendChild(icon);
+      }
+
+      if (!th.dataset.sortBound) {
+        th.dataset.sortBound = 'true';
+        th.addEventListener('click', (e) => {
+          if (e.target.closest('.grid-filter-wrap')) return;
+          DataGridManager.toggleSort(table, colIdx);
+        });
+      }
+    });
+
+    // 2. Kiểm tra xem đã có dòng filter-row chưa
     let filterRow = thead.querySelector('.grid-filter-row');
     if (!filterRow) {
       filterRow = document.createElement('tr');
@@ -1441,7 +1468,7 @@ const DataGridManager = {
             </div>
           `;
         } else {
-          const rawTitle = th.textContent.trim().replace(/[*•#]/g, '').trim();
+          const rawTitle = th.textContent.replace(/[↕▲▼*•#]/g, '').trim();
           const shortTitle = rawTitle.length > 14 ? rawTitle.substring(0, 12) + '..' : rawTitle;
           fth.innerHTML = `
             <div class="grid-filter-wrap">
@@ -1456,7 +1483,7 @@ const DataGridManager = {
       thead.appendChild(filterRow);
     }
 
-    // Gắn sự kiện Chuột Phải (Context Menu) cho tbody
+    // 3. Gắn sự kiện Chuột Phải (Context Menu) cho tbody
     const tbody = table.querySelector('tbody');
     if (tbody && !tbody.dataset.contextBound) {
       tbody.dataset.contextBound = 'true';
@@ -1473,7 +1500,7 @@ const DataGridManager = {
 
         const colIdx = td.cellIndex;
         const th = ths[colIdx];
-        const colName = th ? th.textContent.trim() : 'Cột này';
+        const colName = th ? th.textContent.replace(/[↕▲▼*•#]/g, '').trim() : 'Cột này';
         const cellText = td.textContent.trim();
 
         DataGridManager.showContextMenu(e.clientX, e.clientY, {
@@ -1488,6 +1515,107 @@ const DataGridManager = {
     }
 
     this.applyTableFilters(table);
+  },
+
+  toggleSort(table, colIdx) {
+    const thead = table.querySelector('thead');
+    const headerRow = thead.querySelector('tr:first-child');
+    const th = headerRow.querySelectorAll('th')[colIdx];
+    if (!th) return;
+
+    let nextDir = 'asc';
+    if (th.classList.contains('sorted-asc')) nextDir = 'desc';
+    else if (th.classList.contains('sorted-desc')) nextDir = 'none';
+
+    this.sortColumn(table, colIdx, nextDir);
+  },
+
+  sortColumn(table, colIdx, direction) {
+    const thead = table.querySelector('thead');
+    const headerRow = thead.querySelector('tr:first-child');
+    const ths = Array.from(headerRow.querySelectorAll('th'));
+    const targetTh = ths[colIdx];
+    if (!targetTh) return;
+
+    // Reset tất cả icon sorting của các cột khác
+    ths.forEach((th) => {
+      th.classList.remove('sorted-asc', 'sorted-desc');
+      const icon = th.querySelector('.grid-sort-icon');
+      if (icon) icon.textContent = '↕';
+    });
+
+    const tbody = table.querySelector('tbody');
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => !(r.cells.length === 1 && r.cells[0].colSpan > 1));
+    if (rows.length === 0) return;
+
+    if (direction === 'none') {
+      // Khôi phục thứ tự ban đầu
+      rows.sort((a, b) => (parseInt(a.dataset.origIndex || '0') - parseInt(b.dataset.origIndex || '0')));
+    } else {
+      // Lưu original index lần đầu
+      rows.forEach((r, idx) => {
+        if (!r.dataset.origIndex) r.dataset.origIndex = idx;
+      });
+
+      const icon = targetTh.querySelector('.grid-sort-icon');
+      if (direction === 'asc') {
+        targetTh.classList.add('sorted-asc');
+        if (icon) icon.textContent = '▲';
+      } else {
+        targetTh.classList.add('sorted-desc');
+        if (icon) icon.textContent = '▼';
+      }
+
+      rows.sort((a, b) => {
+        const cellA = a.cells[colIdx]?.textContent.trim() || '';
+        const cellB = b.cells[colIdx]?.textContent.trim() || '';
+
+        const valA = DataGridManager.parseValueForSort(cellA);
+        const valB = DataGridManager.parseValueForSort(cellB);
+
+        let cmp = 0;
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          cmp = valA - valB;
+        } else if (valA instanceof Date && valB instanceof Date) {
+          cmp = valA.getTime() - valB.getTime();
+        } else {
+          cmp = String(valA).localeCompare(String(valB), 'vi', { numeric: true, sensitivity: 'base' });
+        }
+
+        return direction === 'asc' ? cmp : -cmp;
+      });
+    }
+
+    rows.forEach(r => tbody.appendChild(r));
+    this.applyTableFilters(table);
+
+    const colName = targetTh.textContent.replace(/[↕▲▼*•#]/g, '').trim();
+    if (direction === 'asc') showToast(`▲ Đã sắp xếp cột [${colName}] Tăng dần (A-Z / 0-9)`);
+    else if (direction === 'desc') showToast(`▼ Đã sắp xếp cột [${colName}] Giảm dần (Z-A / 9-0)`);
+    else showToast(`↕ Đã trả về thứ tự sắp xếp mặc định`);
+  },
+
+  parseValueForSort(str) {
+    if (!str) return '';
+    const s = str.trim();
+
+    // 1. Nhận diện ngày tháng DD/MM/YYYY
+    const dateDmy = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(s);
+    if (dateDmy) return new Date(`${dateDmy[3]}-${dateDmy[2]}-${dateDmy[1]}`);
+
+    // 2. Nhận diện ngày tháng YYYY-MM-DD
+    const dateYmd = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+    if (dateYmd) return new Date(s);
+
+    // 3. Nhận diện số liệu (vd: "45 ngày", "1,250 TEU", "95.5%", "40'")
+    const cleanNum = s.replace(/,/g, '').replace(/[^\d.-]/g, '');
+    if (cleanNum !== '' && !isNaN(cleanNum)) {
+      return parseFloat(cleanNum);
+    }
+
+    return s.toLowerCase();
   },
 
   onFilterInput(input) {
@@ -1591,6 +1719,18 @@ const DataGridManager = {
       </div>
       <div class="context-menu-divider"></div>
       
+      <button class="context-menu-item" onclick="DataGridManager.sortColumn(document.getElementById('${table.id}'), ${colIdx}, 'asc');DataGridManager.hideContextMenu()">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/><path d="M11 12h4"/><path d="M11 16h7"/><path d="M11 20h10"/></svg>
+        <span>▲ Sắp xếp tăng dần (A ➔ Z / 0 ➔ 9)</span>
+      </button>
+
+      <button class="context-menu-item" onclick="DataGridManager.sortColumn(document.getElementById('${table.id}'), ${colIdx}, 'desc');DataGridManager.hideContextMenu()">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="M11 4h10"/><path d="M11 8h7"/><path d="M11 12h4"/></svg>
+        <span>▼ Sắp xếp giảm dần (Z ➔ A / 9 ➔ 0)</span>
+      </button>
+
+      <div class="context-menu-divider"></div>
+
       <button class="context-menu-item" onclick="DataGridManager.filterByValue('${table.id}', ${colIdx}, '${encodeURIComponent(cleanCellText)}')">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         <span>🔍 Lọc cột này chứa <strong>"${shortText}"</strong></span>
