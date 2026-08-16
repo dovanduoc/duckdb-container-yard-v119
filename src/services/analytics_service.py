@@ -1,17 +1,32 @@
 """
 Dịch vụ phân tích dữ liệu và nghiệp vụ container/bãi cảng.
-Bảo toàn 100% logic và hợp đồng dữ liệu của 13 hàm nghiệp vụ DuckDB.
+Tuân thủ 100% chuẩn phân tích theo lát cắt thời gian As-of-Date (SOURCE_SCAN_RECOMMENDATIONS_V119).
+Quy tắc tồn tại ngày A: GateInDate <= A <= GateOutDate (hoặc GateOut IS NULL).
+Công thức lưu bãi: DATE_DIFF('day', GateInDate, A) + 1.
 """
 
 from numbers import Integral
-from datetime import datetime
+from datetime import datetime, date
 import pandas as pd
 
 from src.core.duckdb_engine import get_connection
 
 
+def resolve_analysis_date(selected_date=None):
+    """Xác định và chuẩn hóa ngày phân tích (mặc định lấy ngày mới nhất trong CSDL)."""
+    con = get_connection()
+    if selected_date is None:
+        res = con.execute("SELECT MAX(ngay) FROM v_daily_yard_capacity").fetchone()
+        return res[0] if res and res[0] else date(2026, 8, 14)
+    try:
+        parsed_date = con.execute("SELECT CAST(? AS DATE)", [selected_date]).fetchone()[0]
+        return parsed_date
+    except Exception:
+        return pd.to_datetime(selected_date).date()
+
+
 def validate_selected_date(selected_date):
-    """Kiểm tra và chuẩn hóa ngày phân tích."""
+    """Kiểm tra và chuẩn hóa ngày phân tích có tồn tại trong dữ liệu."""
     con = get_connection()
     try:
         parsed_date = con.execute("""
@@ -89,9 +104,16 @@ def validate_date_range(start_date, end_date):
     return start_date, end_date
 
 
-def get_current_containers(limit=None):
-    """Lấy danh sách container hiện đang tồn trong bãi (hist = 'N')."""
+def get_current_containers(limit=None, selected_date=None):
+    """
+    Lấy danh sách container tồn bãi theo lát cắt thời gian As-of-Date.
+    Quy tắc: GateInDate <= selected_date AND (gate_out_ts IS NULL OR selected_date <= GateOutDate).
+    Công thức lưu bãi: DATE_DIFF('day', GateInDate, selected_date) + 1.
+    Vị trí bãi: Suy ra từ sự kiện gần nhất tính đến ngày selected_date.
+    """
     con = get_connection()
+    target_date = resolve_analysis_date(selected_date)
+
     if limit is not None:
         if not isinstance(limit, Integral) or isinstance(limit, bool):
             raise TypeError("limit phải là số nguyên hoặc None.")
@@ -103,6 +125,41 @@ def get_current_containers(limit=None):
         limit_clause = ""
 
     query = f"""
+        WITH last_event_as_of AS (
+            SELECT
+                container_id,
+                yard_area_id AS event_yard_area_id,
+                ROW_NUMBER() OVER (
+                    PARTITION BY container_id
+                    ORDER BY event_ts DESC, event_id DESC
+                ) AS rn
+            FROM v_container_event
+            WHERE CAST(event_ts AS DATE) <= CAST(? AS DATE)
+              AND yard_area_id IS NOT NULL
+        ),
+        active_containers AS (
+            SELECT
+                c.container_id,
+                c.container_no,
+                c.shipping_line_id,
+                COALESCE(le.event_yard_area_id, c.yard_area_id) AS effective_yard_area_id,
+                c.container_size,
+                c.container_type,
+                c.full_empty,
+                c.gate_in_ts,
+                c.gate_out_ts,
+                c.hist,
+                DATE_DIFF('day', CAST(c.gate_in_ts AS DATE), CAST(? AS DATE)) + 1 AS dwell_days
+            FROM v_container AS c
+            LEFT JOIN last_event_as_of AS le
+                ON c.container_id = le.container_id AND le.rn = 1
+            WHERE CAST(c.gate_in_ts AS DATE) <= CAST(? AS DATE)
+              AND (
+                  c.gate_out_ts IS NULL
+                  OR CAST(? AS DATE) <= CAST(c.gate_out_ts AS DATE)
+              )
+              AND c.gate_in_ts IS NOT NULL
+        )
         SELECT
             c.container_id,
             c.container_no,
@@ -115,32 +172,30 @@ def get_current_containers(limit=None):
             c.full_empty,
             c.gate_in_ts,
             c.hist,
-            ROUND(
-                DATE_DIFF(
-                    'second',
-                    CAST(c.gate_in_ts AS TIMESTAMP),
-                    CAST(CURRENT_TIMESTAMP AS TIMESTAMP)
-                ) / 86400.0,
-                2
-            ) AS dwell_days
-        FROM v_container AS c
+            c.dwell_days
+        FROM active_containers AS c
         LEFT JOIN v_shipping_line AS s
             ON c.shipping_line_id = s.shipping_line_id
         LEFT JOIN v_yard_area AS y
-            ON c.yard_area_id = y.yard_area_id
-        WHERE UPPER(TRIM(c.hist)) = 'N'
-          AND c.gate_in_ts IS NOT NULL
+            ON c.effective_yard_area_id = y.yard_area_id
         ORDER BY
-            dwell_days DESC,
+            c.dwell_days DESC,
             c.container_no ASC
         {limit_clause}
     """
-    return con.execute(query).df()
+    params = [target_date, target_date, target_date, target_date]
+    return con.execute(query, params).df()
 
 
-def get_overdue_containers(min_days=30, limit=None):
-    """Lấy danh sách container lưu bãi vượt ngưỡng số ngày quy định."""
+# Alias hàm chuẩn ngữ nghĩa as-of-date
+get_containers_as_of_date = get_current_containers
+
+
+def get_overdue_containers(min_days=30, limit=None, selected_date=None):
+    """Lấy danh sách container lưu bãi vượt ngưỡng số ngày quy định tại ngày phân tích."""
     con = get_connection()
+    target_date = resolve_analysis_date(selected_date)
+
     if not isinstance(min_days, Integral) or isinstance(min_days, bool):
         raise TypeError("min_days phải là số nguyên.")
     min_days = int(min_days)
@@ -158,6 +213,39 @@ def get_overdue_containers(min_days=30, limit=None):
         limit_clause = ""
 
     query = f"""
+        WITH last_event_as_of AS (
+            SELECT
+                container_id,
+                yard_area_id AS event_yard_area_id,
+                ROW_NUMBER() OVER (
+                    PARTITION BY container_id
+                    ORDER BY event_ts DESC, event_id DESC
+                ) AS rn
+            FROM v_container_event
+            WHERE CAST(event_ts AS DATE) <= CAST(? AS DATE)
+              AND yard_area_id IS NOT NULL
+        ),
+        active_containers AS (
+            SELECT
+                c.container_id,
+                c.container_no,
+                c.shipping_line_id,
+                COALESCE(le.event_yard_area_id, c.yard_area_id) AS effective_yard_area_id,
+                c.container_size,
+                c.container_type,
+                c.full_empty,
+                c.gate_in_ts,
+                DATE_DIFF('day', CAST(c.gate_in_ts AS DATE), CAST(? AS DATE)) + 1 AS dwell_days
+            FROM v_container AS c
+            LEFT JOIN last_event_as_of AS le
+                ON c.container_id = le.container_id AND le.rn = 1
+            WHERE CAST(c.gate_in_ts AS DATE) <= CAST(? AS DATE)
+              AND (
+                  c.gate_out_ts IS NULL
+                  OR CAST(? AS DATE) <= CAST(c.gate_out_ts AS DATE)
+              )
+              AND c.gate_in_ts IS NOT NULL
+        )
         SELECT
             c.container_id,
             c.container_no,
@@ -169,33 +257,21 @@ def get_overdue_containers(min_days=30, limit=None):
             c.container_type,
             c.full_empty,
             c.gate_in_ts,
-            ROUND(
-                DATE_DIFF(
-                    'second',
-                    CAST(c.gate_in_ts AS TIMESTAMP),
-                    CAST(CURRENT_TIMESTAMP AS TIMESTAMP)
-                ) / 86400.0,
-                2
-            ) AS dwell_days,
+            c.dwell_days,
             'QUA_HAN' AS trang_thai_canh_bao
-        FROM v_container AS c
+        FROM active_containers AS c
         LEFT JOIN v_shipping_line AS s
             ON c.shipping_line_id = s.shipping_line_id
         LEFT JOIN v_yard_area AS y
-            ON c.yard_area_id = y.yard_area_id
-        WHERE UPPER(TRIM(c.hist)) = 'N'
-          AND c.gate_in_ts IS NOT NULL
-          AND DATE_DIFF(
-                'second',
-                CAST(c.gate_in_ts AS TIMESTAMP),
-                CAST(CURRENT_TIMESTAMP AS TIMESTAMP)
-              ) / 86400.0 >= ?
+            ON c.effective_yard_area_id = y.yard_area_id
+        WHERE c.dwell_days >= ?
         ORDER BY
-            dwell_days DESC,
+            c.dwell_days DESC,
             c.container_no ASC
         {limit_clause}
     """
-    return con.execute(query, [min_days]).df()
+    params = [target_date, target_date, target_date, target_date, min_days]
+    return con.execute(query, params).df()
 
 
 def get_yard_utilization_by_date(selected_date):
@@ -284,22 +360,28 @@ def get_yard_list():
     """).fetchdf()
 
 
-def get_shipping_line_ranking():
-    """Xếp hạng hãng tàu theo số lượt container và sản lượng TEU."""
+def get_shipping_line_ranking(selected_date=None):
+    """Xếp hạng hãng tàu theo số lượt container và sản lượng TEU tồn bãi tại ngày phân tích."""
     con = get_connection()
+    target_date = resolve_analysis_date(selected_date)
+
     query = """
-        WITH normalized_container AS (
+        WITH active_containers AS (
             SELECT
-                shipping_line_id,
-                container_size,
+                c.shipping_line_id,
                 CASE
-                    WHEN TRY_CAST(container_size AS INTEGER) = 20 THEN 20
-                    WHEN TRY_CAST(container_size AS INTEGER) = 40 THEN 40
-                    WHEN TRY_CAST(container_size AS INTEGER) = 45 THEN 45
+                    WHEN TRY_CAST(c.container_size AS INTEGER) = 20 THEN 20
+                    WHEN TRY_CAST(c.container_size AS INTEGER) = 40 THEN 40
+                    WHEN TRY_CAST(c.container_size AS INTEGER) = 45 THEN 45
                     ELSE 20
                 END AS container_size_feet
-            FROM v_container
-            WHERE UPPER(TRIM(hist)) = 'N'
+            FROM v_container AS c
+            WHERE CAST(c.gate_in_ts AS DATE) <= CAST(? AS DATE)
+              AND (
+                  c.gate_out_ts IS NULL
+                  OR CAST(? AS DATE) <= CAST(c.gate_out_ts AS DATE)
+              )
+              AND c.gate_in_ts IS NOT NULL
         ),
         shipping_line_summary AS (
             SELECT
@@ -315,7 +397,7 @@ def get_shipping_line_ranking():
                         ELSE 1.0
                     END
                 ) AS total_teu
-            FROM normalized_container AS c
+            FROM active_containers AS c
             INNER JOIN v_shipping_line AS s
                 ON c.shipping_line_id = s.shipping_line_id
             GROUP BY
@@ -343,24 +425,31 @@ def get_shipping_line_ranking():
             ranking,
             s.shipping_line_code
     """
-    return con.execute(query).df()
+    return con.execute(query, [target_date, target_date]).df()
 
 
-def get_container_type_teu_ranking():
-    """Xếp hạng các loại container theo tổng sản lượng TEU."""
+def get_container_type_teu_ranking(selected_date=None):
+    """Xếp hạng các loại container theo tổng sản lượng TEU tồn bãi tại ngày phân tích."""
     con = get_connection()
+    target_date = resolve_analysis_date(selected_date)
+
     query = """
-        WITH normalized_container AS (
+        WITH active_containers AS (
             SELECT
-                container_type,
+                c.container_type,
                 CASE
-                    WHEN TRY_CAST(container_size AS INTEGER) = 20 THEN 20
-                    WHEN TRY_CAST(container_size AS INTEGER) = 40 THEN 40
-                    WHEN TRY_CAST(container_size AS INTEGER) = 45 THEN 45
+                    WHEN TRY_CAST(c.container_size AS INTEGER) = 20 THEN 20
+                    WHEN TRY_CAST(c.container_size AS INTEGER) = 40 THEN 40
+                    WHEN TRY_CAST(c.container_size AS INTEGER) = 45 THEN 45
                     ELSE 20
                 END AS container_size_feet
-            FROM v_container
-            WHERE UPPER(TRIM(hist)) = 'N'
+            FROM v_container AS c
+            WHERE CAST(c.gate_in_ts AS DATE) <= CAST(? AS DATE)
+              AND (
+                  c.gate_out_ts IS NULL
+                  OR CAST(? AS DATE) <= CAST(c.gate_out_ts AS DATE)
+              )
+              AND c.gate_in_ts IS NOT NULL
         ),
         container_type_summary AS (
             SELECT
@@ -374,7 +463,7 @@ def get_container_type_teu_ranking():
                         ELSE 1.0
                     END
                 ) AS total_teu
-            FROM normalized_container
+            FROM active_containers
             GROUP BY container_type
         ),
         total_yard_teu AS (
@@ -396,12 +485,14 @@ def get_container_type_teu_ranking():
             ranking,
             s.container_type
     """
-    return con.execute(query).df()
+    return con.execute(query, [target_date, target_date]).df()
 
 
-def get_upcoming_overdue_containers(overdue_threshold_days=30, warning_days=5):
-    """Tìm container đang tồn sắp đạt ngưỡng quá hạn."""
+def get_upcoming_overdue_containers(overdue_threshold_days=30, warning_days=5, selected_date=None):
+    """Tìm container đang tồn sắp đạt ngưỡng quá hạn tại ngày phân tích."""
     con = get_connection()
+    target_date = resolve_analysis_date(selected_date)
+
     if not isinstance(overdue_threshold_days, int) or isinstance(overdue_threshold_days, bool):
         raise TypeError("overdue_threshold_days phải là số nguyên.")
     if not isinstance(warning_days, int) or isinstance(warning_days, bool):
@@ -414,22 +505,33 @@ def get_upcoming_overdue_containers(overdue_threshold_days=30, warning_days=5):
         raise ValueError("Số ngày cảnh báo phải nhỏ hơn ngưỡng quá hạn.")
 
     query = """
-        WITH current_container AS (
+        WITH last_event_as_of AS (
+            SELECT
+                container_id,
+                yard_area_id AS event_yard_area_id,
+                ROW_NUMBER() OVER (
+                    PARTITION BY container_id
+                    ORDER BY event_ts DESC, event_id DESC
+                ) AS rn
+            FROM v_container_event
+            WHERE CAST(event_ts AS DATE) <= CAST(? AS DATE)
+              AND yard_area_id IS NOT NULL
+        ),
+        active_containers AS (
             SELECT
                 c.container_no,
                 c.gate_in_ts,
-                c.yard_area_id,
+                COALESCE(le.event_yard_area_id, c.yard_area_id) AS effective_yard_area_id,
                 c.shipping_line_id,
-                ROUND(
-                    DATE_DIFF(
-                        'second',
-                        CAST(c.gate_in_ts AS TIMESTAMP),
-                        CAST(CURRENT_TIMESTAMP AS TIMESTAMP)
-                    ) / 86400.0,
-                    2
-                ) AS dwell_days
+                DATE_DIFF('day', CAST(c.gate_in_ts AS DATE), CAST(? AS DATE)) + 1 AS dwell_days
             FROM v_container AS c
-            WHERE UPPER(TRIM(c.hist)) = 'N'
+            LEFT JOIN last_event_as_of AS le
+                ON c.container_id = le.container_id AND le.rn = 1
+            WHERE CAST(c.gate_in_ts AS DATE) <= CAST(? AS DATE)
+              AND (
+                  c.gate_out_ts IS NULL
+                  OR CAST(? AS DATE) <= CAST(c.gate_out_ts AS DATE)
+              )
               AND c.gate_in_ts IS NOT NULL
         )
         SELECT
@@ -442,9 +544,9 @@ def get_upcoming_overdue_containers(overdue_threshold_days=30, warning_days=5):
             c.dwell_days,
             CAST(CAST(? AS INTEGER) - c.dwell_days AS INTEGER) AS remaining_days,
             'SAP_QUA_HAN' AS warning_status
-        FROM current_container AS c
+        FROM active_containers AS c
         LEFT JOIN v_yard_area AS y
-            ON c.yard_area_id = y.yard_area_id
+            ON c.effective_yard_area_id = y.yard_area_id
         LEFT JOIN v_shipping_line AS s
             ON c.shipping_line_id = s.shipping_line_id
         WHERE c.dwell_days >= (CAST(? AS INTEGER) - CAST(? AS INTEGER))
@@ -455,6 +557,7 @@ def get_upcoming_overdue_containers(overdue_threshold_days=30, warning_days=5):
             c.container_no ASC
     """
     parameters = [
+        target_date, target_date, target_date, target_date,
         overdue_threshold_days,
         overdue_threshold_days,
         warning_days,
@@ -547,18 +650,21 @@ def get_container_history(container_no):
 
 
 def get_overview_kpis(selected_date):
-    """Tổng hợp KPI tại ngày được chọn."""
+    """Tổng hợp 4 nhóm KPI đồng bộ 100% theo lát cắt thời gian As-of-Date tại ngày được chọn."""
     selected_date = pd.to_datetime(selected_date).date()
-    current_containers_df = get_current_containers(limit=None)
-    current_container_count = len(current_containers_df)
+    
+    # 1. Tập container tồn bãi tại ngày được chọn
+    as_of_containers_df = get_current_containers(limit=None, selected_date=selected_date)
+    current_container_count = len(as_of_containers_df)
 
-    if current_containers_df.empty:
+    if as_of_containers_df.empty:
         overdue_container_count = 0
         average_dwell_days = 0.0
     else:
-        overdue_container_count = int((current_containers_df["dwell_days"] >= 30).sum())
-        average_dwell_days = round(float(current_containers_df["dwell_days"].mean()), 2)
+        overdue_container_count = int((as_of_containers_df["dwell_days"] >= 30).sum())
+        average_dwell_days = round(float(as_of_containers_df["dwell_days"].mean()), 2)
 
+    # 2. Tình hình sử dụng bãi cảng tại ngày được chọn
     yard_utilization_df = get_yard_utilization_by_date(selected_date=selected_date)
 
     if yard_utilization_df.empty:
@@ -577,6 +683,7 @@ def get_overview_kpis(selected_date):
         highest_yard_name = f"{highest_yard_code} - {highest_yard_full_name}"
         highest_utilization = round(float(highest_yard_df.iloc[0]["ty_le_su_dung"]), 2)
 
+        # Ngưỡng: Cảnh báo 85-94%, Quá tải >= 95%
         warning_yard_count = int(
             ((yard_utilization_df["ty_le_su_dung"] >= 85) & (yard_utilization_df["ty_le_su_dung"] < 95)).sum()
         )

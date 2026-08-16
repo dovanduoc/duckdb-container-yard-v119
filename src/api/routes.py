@@ -76,13 +76,13 @@ def get_dashboard_overview(date: Optional[str] = None):
     try:
         kpi_df, highest_yard_df = get_overview_kpis(selected_date)
         yard_util_df = get_yard_utilization_by_date(selected_date)
-        full_shipping_df = get_shipping_line_ranking()
+        full_shipping_df = get_shipping_line_ranking(selected_date=selected_date)
         shipping_df = full_shipping_df.head(5)
-        cont_type_df = get_container_type_teu_ranking().head(5)
+        cont_type_df = get_container_type_teu_ranking(selected_date=selected_date).head(5)
         overloaded_df = get_overloaded_yards(selected_date, threshold=95)
-        upcoming_df = get_upcoming_overdue_containers(overdue_threshold_days=30, warning_days=5).head(5)
+        upcoming_df = get_upcoming_overdue_containers(overdue_threshold_days=30, warning_days=5, selected_date=selected_date).head(5)
 
-        # Tính tổng TEU chính xác của toàn bộ container tồn bãi (từ 100% hãng tàu)
+        # Tính tổng TEU chính xác của toàn bộ container tồn bãi tại ngày được chọn
         total_teu = float(full_shipping_df["total_teu"].sum()) if not full_shipping_df.empty else 0.0
 
         # Lấy giá trị KPI
@@ -127,24 +127,26 @@ def get_yard_heatmap_matrix(date: Optional[str] = None):
 
 @api_router.get("/containers")
 def search_containers(
+    date: Optional[str] = None,
     filter_type: str = Query("current", enum=["current", "overdue", "upcoming"]),
     min_days: int = 30,
     warning_days: int = 5,
     limit: int = 50
 ):
-    """Tra cứu danh sách container: đang tồn, quá hạn hoặc sắp quá hạn."""
+    """Tra cứu danh sách container: đang tồn, quá hạn hoặc sắp quá hạn theo ngày phân tích As-of-Date."""
     try:
         if filter_type == "current":
-            df = get_current_containers(limit=limit)
+            df = get_current_containers(limit=limit, selected_date=date)
         elif filter_type == "overdue":
-            df = get_overdue_containers(min_days=min_days, limit=limit)
+            df = get_overdue_containers(min_days=min_days, limit=limit, selected_date=date)
         elif filter_type == "upcoming":
-            df = get_upcoming_overdue_containers(overdue_threshold_days=min_days, warning_days=warning_days).head(limit)
+            df = get_upcoming_overdue_containers(overdue_threshold_days=min_days, warning_days=warning_days, selected_date=date).head(limit)
         else:
-            df = get_current_containers(limit=limit)
+            df = get_current_containers(limit=limit, selected_date=date)
 
         return {
             "filter_type": filter_type,
+            "selected_date": date,
             "total_records": len(df),
             "data": df_to_clean_json(df)
         }
@@ -243,12 +245,13 @@ def get_yard_trend_data(
 
 
 @api_router.get("/rankings")
-def get_full_rankings():
-    """Lấy đầy đủ bảng xếp hạng Hãng tàu và Loại Container theo sản lượng TEU."""
+def get_full_rankings(date: Optional[str] = None):
+    """Lấy đầy đủ bảng xếp hạng Hãng tàu và Loại Container theo sản lượng TEU tại ngày phân tích."""
     try:
-        shipping_df = get_shipping_line_ranking()
-        type_df = get_container_type_teu_ranking()
+        shipping_df = get_shipping_line_ranking(selected_date=date)
+        type_df = get_container_type_teu_ranking(selected_date=date)
         return {
+            "selected_date": date,
             "shipping_lines": df_to_clean_json(shipping_df),
             "container_types": df_to_clean_json(type_df)
         }
