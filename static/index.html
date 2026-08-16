@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hệ thống phân tích và giám sát container tồn bãi - DuckDB & FastAPI</title>
+  
+  <!-- Plotly.js Offline Bundle (100% Không phụ thuộc Internet) -->
+  <script src="/static/libs/plotly.min.js"></script>
+  
+  <!-- App Style -->
+  <link rel="stylesheet" href="/static/css/style.css" />
+  
+  <script>
+    (function(){
+      try {
+        var k = 'yard-analytics-theme';
+        var v = localStorage.getItem(k);
+        var d = v ? v === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (d) document.documentElement.classList.add('dark');
+      } catch(e) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="app" id="app">
+  <!-- SIDEBAR NAVIGATION -->
+  <aside class="sidebar" aria-label="Điều hướng chính">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="2"/><path d="M12 7v11M7 10h10M4 14c1 4 4 6 8 6s7-2 8-6"/></svg>
+      </div>
+      <div class="brand-text">
+        <h2>PORT DUCKDB</h2>
+        <span>YARD ANALYTICS V119</span>
+      </div>
+    </div>
+    
+    <nav class="nav">
+      <button class="nav-btn active" data-view="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 16v-4M12 16V8M17 16v-6"/></svg><span>Tổng quan</span></button>
+      <button class="nav-btn" data-view="yard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V9l8-5 8 5v11M8 20v-7h8v7M3 10h18"/></svg><span>Sơ đồ Bãi 2D</span></button>
+      <button class="nav-btn" data-view="container"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="12" rx="1"/><path d="M7 6v12M11 6v12M15 6v12M19 6v12"/></svg><span>Container & Lịch sử</span></button>
+      <button class="nav-btn" data-view="trend"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 17l5-5 4 3 7-8"/><path d="M16 7h4v4"/></svg><span>Xu hướng</span></button>
+      <button class="nav-btn" data-view="ranking"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M6 5H4v2a4 4 0 0 0 4 4M18 5h2v2a4 4 0 0 1-4 4M12 12v4M8 20h8M9 16h6"/></svg><span>Xếp hạng</span></button>
+      <button class="nav-btn" data-view="etl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg><span>ETL Dữ liệu</span></button>
+      <button class="nav-btn" data-view="benchmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>Benchmark</span></button>
+    </nav>
+
+    <button class="collapse-btn" id="collapseBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6"/></svg><span>Thu gọn Menu</span></button>
+  </aside>
+
+  <!-- MAIN VIEW CONTAINER -->
+  <main class="main">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="title">
+        <h1>HỆ THỐNG PHÂN TÍCH VÀ GIÁM SÁT CONTAINER TỒN BÃI</h1>
+        <p>Nền tảng phân tích dữ liệu vận hành bãi hiệu năng cao sử dụng <strong>DuckDB & Apache Parquet</strong></p>
+      </div>
+      <div class="topmeta">
+        <div class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <span id="updateTimeTxt">Đang tải...</span>
+        </div>
+        <span class="status-badge"><span class="status-dot"></span>DuckDB OLAP Online</span>
+        <button class="icon-btn" id="themeBtn" title="Chuyển đổi Sáng / Tối"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.7A8 8 0 1 1 11.3 3a6.5 6.5 0 0 0 9.7 9.7Z"/></svg></button>
+        <div class="user-badge"><div class="avatar">OM</div><span class="user-name">Ops Manager</span></div>
+      </div>
+    </header>
+
+    <!-- KPI Summary Section -->
+    <section class="kpis-section">
+      <article class="kpi-card">
+        <div class="kpi-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="8" width="16" height="11" rx="1"/><path d="M8 8V5h8v3M8 11v5M12 11v5M16 11v5"/></svg></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Container Tồn Bãi</div>
+          <div class="kpi-value-row"><span class="kpi-value" id="kpiContCount">-</span></div>
+          <div class="kpi-sub">Số container đang trong bãi</div>
+        </div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-icon cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v5M8 5h8M4 10h16v10H4zM8 13v4M12 13v4M16 13v4"/></svg></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Tổng TEU Tồn Bãi</div>
+          <div class="kpi-value-row"><span class="kpi-value" id="kpiTotalTeu">-</span></div>
+          <div class="kpi-sub">Quy đổi 20' / 40' / 45'</div>
+        </div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-icon violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 18l5-6 4 3 7-9M16 6h4v4"/></svg></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Tồn Quá Hạn (&ge;30 Ngày)</div>
+          <div class="kpi-value-row"><span class="kpi-value" id="kpiOverdueCount">-</span></div>
+          <div class="kpi-sub">TB: <span id="kpiAvgDwell">-</span> ngày lưu bãi</div>
+        </div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-icon orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4 21 20H3L12 4Z"/><path d="M12 9v5M12 17h.01"/></svg></div>
+        <div class="kpi-body">
+          <div class="kpi-label">Bãi Quá Tải (&ge;95%)</div>
+          <div class="kpi-value-row"><span class="kpi-value" id="kpiOverloadedCount">-</span> <small style="font-size:11px;color:var(--muted)">khu</small></div>
+          <div class="kpi-sub">Cao nhất: <span id="kpiHighestYard">-</span></div>
+        </div>
+      </article>
+
+      <div class="control-stack">
+        <button class="btn-primary" id="refreshBtn"><svg id="refreshIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7v5h-5M4 17v-5h5M18 12a6 6 0 0 0-10.5-4M6 12a6 6 0 0 0 10.5 4"/></svg>Làm mới số liệu</button>
+        <div class="date-filter-box">
+          <label style="font-size:10px;font-weight:750;color:var(--muted)">NGÀY:</label>
+          <input type="date" id="analysisDateInput" value="2026-08-14" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Top Tab Bar -->
+    <div class="tabs-bar" role="tablist">
+      <button class="tab-item active" data-view="overview">▦ Tổng quan</button>
+      <button class="tab-item" data-view="yard">⌂ Sơ đồ Bãi 2D</button>
+      <button class="tab-item" data-view="container">📦 Container & Lịch sử</button>
+      <button class="tab-item" data-view="trend">⌁ Xu hướng</button>
+      <button class="tab-item" data-view="ranking">♜ Xếp hạng</button>
+      <button class="tab-item" data-view="etl">🔄 ETL Dữ liệu</button>
+      <button class="tab-item" data-view="benchmark">⏱️ Benchmark</button>
+    </div>
+
+    <!-- =========================================================================
+         VIEW 1: TỔNG QUAN (DASHBOARD 3 CỘT)
+         ========================================================================= -->
+    <section class="view-panel active" id="view-overview">
+      <div class="dashboard-grid">
+        <!-- Cột 1: Biểu đồ -->
+        <div class="dash-col">
+          <article class="card">
+            <div class="card-head">
+              <div class="card-title"><span class="mini-badge-icon">⚓</span>Sản lượng theo Hãng tàu (Top 5)</div>
+            </div>
+            <div class="card-body">
+              <div id="chartOverviewShipping" style="height:210px;width:100%"></div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <div class="card-title"><span class="mini-badge-icon teal">▥</span>Cơ cấu Loại Container (Top 5)</div>
+            </div>
+            <div class="card-body">
+              <div id="chartOverviewType" style="height:210px;width:100%"></div>
+            </div>
+          </article>
+        </div>
+
+        <!-- Cột 2: Bảng xếp hạng -->
+        <div class="dash-col">
+          <article class="card">
+            <div class="card-head">
+              <div class="card-title"><span class="mini-badge-icon">⚓</span>Bảng Xếp Hạng Hãng Tàu</div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="tableOverviewShipping">
+                <thead><tr><th>#</th><th>Mã hãng</th><th>Tên hãng tàu</th><th>Số Cont</th><th>TEU</th></tr></thead>
+                <tbody><tr><td colspan="5" style="text-align:center">Đang nạp...</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <div class="card-title"><span class="mini-badge-icon teal">▥</span>Bảng Xếp Hạng Loại Container</div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="tableOverviewType">
+                <thead><tr><th>#</th><th>Loại cont</th><th>Số Cont</th><th>TEU</th><th>Tỷ trọng</th></tr></thead>
+                <tbody><tr><td colspan="5" style="text-align:center">Đang nạp...</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+
+        <!-- Cột 3: Cảnh báo & Insights -->
+        <div class="dash-col">
+          <article class="card">
+            <div class="card-head">
+              <div class="card-title" style="color:var(--red)"><span class="mini-badge-icon red">!</span>Cảnh Báo Quá Tải (&ge;95%)</div>
+            </div>
+            <div class="alert-list" id="overviewOverloadList">
+              <div style="font-size:11px;color:var(--muted);padding:8px">Đang quét khu vực bãi...</div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <div class="card-title" style="color:var(--amber)"><span class="mini-badge-icon amber">⏳</span>Sắp Quá Hạn Lưu Bãi</div>
+            </div>
+            <div class="alert-list" id="overviewUpcomingList">
+              <div style="font-size:11px;color:var(--muted);padding:8px">Đang quét container...</div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         VIEW 2: SƠ ĐỒ BÃI 2D (YARD HEATMAP 8 BLOCKS)
+         ========================================================================= -->
+    <section class="view-panel" id="view-yard">
+      <article class="card">
+        <div class="card-head">
+          <div class="card-title">🏗️ Sơ Đồ Mặt Bằng Bãi Cảng 2D (8 Khu Vực A1 - D2)</div>
+          <div style="display:flex;gap:12px;font-size:11px;font-weight:700">
+            <span style="color:#047857">● An toàn (&lt;70%)</span>
+            <span style="color:#0369A1">● Mức cao (70-84%)</span>
+            <span style="color:#B45309">● Cảnh báo (85-94%)</span>
+            <span style="color:#B91C1C">● Quá tải (&ge;95%)</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="yard-grid-4" id="yardHeatmapContainer">
+            <!-- 8 Block cards render động -->
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head"><div class="card-title">📊 Bảng Chi Tiết Tình Trạng Sử Dụng 8 Bãi Cảng</div></div>
+        <div class="table-wrap">
+          <table class="data-table" id="tableYardDetail">
+            <thead><tr><th>Mã Bãi</th><th>Tên Bãi</th><th>Sức chứa tối đa (TEU)</th><th>Đã sử dụng (TEU)</th><th>Tỷ lệ (%)</th><th>Trạng thái</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <!-- =========================================================================
+         VIEW 3: CONTAINER & LỊCH SỬ (TIMELINE STEPPER)
+         ========================================================================= -->
+    <section class="view-panel" id="view-container">
+      <div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(360px,1fr);gap:14px">
+        <!-- Trái: Danh sách container lọc -->
+        <article class="card">
+          <div class="card-head">
+            <div class="card-title">📦 Danh Sách Container Trong Bãi</div>
+            <div class="form-row" style="margin:0">
+              <select class="form-control" id="containerFilterSelect">
+                <option value="current">Đang tồn bãi (Hist = N)</option>
+                <option value="overdue">Tồn bãi quá hạn (&ge;30 ngày)</option>
+                <option value="upcoming">Sắp quá hạn (còn &le;5 ngày)</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table" id="tableContainerList">
+              <thead><tr><th>Số Container</th><th>Hãng Tàu</th><th>Bãi</th><th>Size</th><th>Type</th><th>F/E</th><th>Ngày vào</th><th>Số ngày tồn</th><th>Thao tác</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </article>
+
+        <!-- Phải: Tra cứu lịch sử dòng thời gian Stepper -->
+        <article class="card">
+          <div class="card-head">
+            <div class="card-title">🔍 Truy Vết Lịch Sử Container (Timeline Stepper)</div>
+          </div>
+          <div class="card-body">
+            <div class="form-row">
+              <input type="text" class="form-control" id="searchContInput" value="PILU0017000" placeholder="Nhập số container..." style="flex:1" />
+              <button class="btn-primary" id="searchContBtn">Truy vết</button>
+            </div>
+            
+            <div id="containerTimelineContainer">
+              <!-- Render Timeline -->
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         VIEW 4: XU HƯỚNG CHUỖI THỜI GIAN
+         ========================================================================= -->
+    <section class="view-panel" id="view-trend">
+      <article class="card">
+        <div class="card-head">
+          <div class="card-title">📈 Xu Hướng Sức Chứa Bãi Cảng Theo Chuỗi Thời Gian (Plotly Area Chart)</div>
+          <div class="form-row" style="margin:0">
+            <select class="form-control" id="trendYardSelect">
+              <option value="1">Bãi A (Khu A1)</option>
+              <option value="2">Bãi B (Khu A2)</option>
+              <option value="3">Bãi C (Khu B1)</option>
+              <option value="4">Bãi D (Khu B2)</option>
+              <option value="5">Bãi E (Khu C1)</option>
+              <option value="6">Bãi F (Khu C2)</option>
+              <option value="7">Bãi G (Khu D1)</option>
+              <option value="8">Bãi H (Khu D2)</option>
+            </select>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="chartTrendArea" style="height:320px;width:100%"></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head"><div class="card-title">📋 Bảng Dữ Liệu Lịch Sử Sử Dụng Bãi Theo Ngày</div></div>
+        <div class="table-wrap">
+          <table class="data-table" id="tableTrendHistory">
+            <thead><tr><th>Ngày</th><th>Mã bãi</th><th>Tên bãi</th><th>Sức chứa tối đa</th><th>Đã sử dụng</th><th>Tỷ lệ (%)</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <!-- =========================================================================
+         VIEW 5: XẾP HẠNG
+         ========================================================================= -->
+    <section class="view-panel" id="view-ranking">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <article class="card">
+          <div class="card-head"><div class="card-title">⚓ Xếp Hạng Hãng Tàu Theo TEU</div></div>
+          <div class="card-body">
+            <div id="chartRankShipping" style="height:260px;width:100%"></div>
+            <div class="table-wrap" style="margin-top:10px">
+              <table class="data-table" id="tableRankShippingFull">
+                <thead><tr><th>Hạng</th><th>Mã hãng</th><th>Tên hãng tàu</th><th>Số Cont</th><th>Tổng TEU</th><th>Thị phần</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-head"><div class="card-title">▥ Phân Bổ Tỷ Trọng Theo Loại Container</div></div>
+          <div class="card-body">
+            <div id="chartRankType" style="height:260px;width:100%"></div>
+            <div class="table-wrap" style="margin-top:10px">
+              <table class="data-table" id="tableRankTypeFull">
+                <thead><tr><th>Hạng</th><th>Loại container</th><th>Số Cont</th><th>Tổng TEU</th><th>Tỷ lệ (%)</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         VIEW 6: ETL DỮ LIỆU (DATA CONTRACT QUALITY)
+         ========================================================================= -->
+    <section class="view-panel" id="view-etl">
+      <article class="card">
+        <div class="card-head"><div class="card-title">🔄 Pipeline ETL & Kiểm Tra 10 Quy Tắc Hợp Đồng Dữ Liệu (DuckDB Engine)</div></div>
+        <div class="card-body">
+          <div class="form-row">
+            <label style="font-weight:750">Nguồn dữ liệu:</label>
+            <select class="form-control" id="etlSourceSelect">
+              <option value="demo">CSV mẫu có 4 dòng sai quy tắc (Data Quality Demo - 204 dòng)</option>
+              <option value="raw">Dữ liệu gốc container.csv (100.000 dòng)</option>
+            </select>
+            <button class="btn-primary" id="runEtlBtn">🚀 Chạy ETL & Phân loại dữ liệu</button>
+          </div>
+
+          <div id="etlResultSection" style="display:none;margin-top:14px">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+              <div class="kpi-card"><div class="kpi-body"><div class="kpi-label">Tổng số dòng quét</div><div class="kpi-value" id="etlTotal">-</div></div></div>
+              <div class="kpi-card" style="border-left:3px solid var(--green)"><div class="kpi-body"><div class="kpi-label" style="color:var(--green)">Hợp lệ (Xuất Parquet)</div><div class="kpi-value" id="etlValid" style="color:var(--green)">-</div></div></div>
+              <div class="kpi-card" style="border-left:3px solid var(--red)"><div class="kpi-body"><div class="kpi-label" style="color:var(--red)">Vi phạm (Xuất CSV lỗi)</div><div class="kpi-value" id="etlError" style="color:var(--red)">-</div></div></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+              <div>
+                <h4 style="margin:0 0 6px;color:var(--red)">❌ Mẫu Dòng Bị Từ Chối (Kèm Lý Do Lỗi)</h4>
+                <div class="table-wrap">
+                  <table class="data-table" id="tableEtlRejected">
+                    <thead><tr><th>Số Container</th><th>Size</th><th>Lý do vi phạm quy tắc</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+              <div>
+                <h4 style="margin:0 0 6px;color:var(--green)">✅ Mẫu Dòng Hợp Lệ (Chuẩn Hóa Đưa Vào CSDL)</h4>
+                <div class="table-wrap">
+                  <table class="data-table" id="tableEtlValid">
+                    <thead><tr><th>Số Container</th><th>Hãng</th><th>Bãi</th><th>Size</th><th>F/E</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- =========================================================================
+         VIEW 7: BENCHMARK HIỆU NĂNG
+         ========================================================================= -->
+    <section class="view-panel" id="view-benchmark">
+      <article class="card">
+        <div class="card-head"><div class="card-title">⏱️ Thử Nghiệm Đo Hiệu Năng Thực Nghiệm (Benchmark: CSV vs Apache Parquet)</div></div>
+        <div class="card-body">
+          <div class="form-row">
+            <label style="font-weight:750">Quy mô dữ liệu thử nghiệm:</label>
+            <select class="form-control" id="benchRowsSelect">
+              <option value="1000">1.000 dòng (Kiểm tra nhanh)</option>
+              <option value="1000000">1.000.000 dòng (Quy mô trung bình)</option>
+              <option value="5000000">5.000.000 dòng (Dữ liệu lớn Big Data)</option>
+            </select>
+            <button class="btn-primary" id="runBenchmarkBtn">⚡ Bắt đầu đo hiệu năng</button>
+          </div>
+
+          <div id="benchResultSection" style="display:none;margin-top:14px">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+              <div class="kpi-card"><div class="kpi-body"><div class="kpi-label">Tiết kiệm đĩa (Parquet/CSV)</div><div class="kpi-value" id="benchRatioSize">-</div></div></div>
+              <div class="kpi-card"><div class="kpi-body"><div class="kpi-label">Tốc độ quét nhanh hơn</div><div class="kpi-value" id="benchRatioScan" style="color:var(--green)">-</div></div></div>
+              <div class="kpi-card"><div class="kpi-body"><div class="kpi-label">Tốc độ tổng hợp nhanh hơn</div><div class="kpi-value" id="benchRatioAgg" style="color:var(--green)">-</div></div></div>
+            </div>
+
+            <h4 style="margin:0 0 6px">📊 Bảng Kết Quả Đo Thời Gian Thực Nghiệm</h4>
+            <div class="table-wrap">
+              <table class="data-table" id="tableBenchmarkRun">
+                <thead><tr><th>Chỉ số đo đạc</th><th>Định dạng CSV</th><th>Định dạng Apache Parquet</th><th>Hiệu quả tối ưu</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div>Hệ Thống Phân Tích Container Tồn Bãi · <strong>Đồ án Tốt nghiệp / Đề án Cảng Biển</strong></div>
+      <div>Công nghệ: <strong>DuckDB</strong> · <strong>Apache Parquet</strong> · <strong>FastAPI</strong> · <strong>Plotly.js</strong></div>
+    </footer>
+  </main>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast" id="toast"></div>
+
+<!-- App Scripts -->
+<script src="/static/js/charts.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>
