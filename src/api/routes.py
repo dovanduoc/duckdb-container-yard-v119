@@ -382,8 +382,8 @@ async def run_etl_pipeline(
             "valid_file": valid_file,
             "rejected_file": rejected_file,
             "error_breakdown": df_to_clean_json(breakdown_df),
-            "valid_sample": df_to_clean_json(valid_df.head(20)),
-            "rejected_sample": df_to_clean_json(rejected_df.head(20))
+            "valid_sample": df_to_clean_json(valid_df.head(50)),
+            "rejected_sample": df_to_clean_json(rejected_df if len(rejected_df) <= 100 else rejected_df.head(100))
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

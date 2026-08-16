@@ -251,22 +251,12 @@
       <article class="card">
         <div class="card-head" style="flex-wrap:wrap;gap:10px">
           <div class="card-title" id="yardMapTitle">⚓ Sơ Đồ Không Gian Mặt Bằng Phân Khu B (Terminal B - SNP Cát Lái)</div>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <!-- Nút 1 Icon Switch giữa 2 Mode Bản Đồ (Siêu Gọn & Tinh Tế) -->
-            <button id="btnToggleYardMapMode" class="icon-btn" onclick="toggleYardMapMode()" title="Chuyển sang Bản Đồ Số 160ha">
-              <svg id="iconMapMode" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
-                <line x1="8" y1="2" x2="8" y2="18"></line>
-                <line x1="16" y1="6" x2="16" y2="22"></line>
-              </svg>
-            </button>
-            <!-- Chú thích màu sắc Heatmap -->
-            <div id="yardHeatmapLegend" style="display:flex;align-items:center;gap:12px;font-size:11px;font-weight:700">
-              <span style="color:#047857">● An toàn (&lt;70%)</span>
-              <span style="color:#0369A1">● Mức cao (70-84%)</span>
-              <span style="color:#B45309">● Cảnh báo (85-94%)</span>
-              <span style="color:#B91C1C">● Quá tải (&ge;95%)</span>
-            </div>
+          <!-- Chú thích màu sắc Heatmap -->
+          <div id="yardHeatmapLegend" style="display:flex;align-items:center;gap:12px;font-size:11px;font-weight:700">
+            <span style="color:#047857">● An toàn (&lt;70%)</span>
+            <span style="color:#0369A1">● Mức cao (70-84%)</span>
+            <span style="color:#B45309">● Cảnh báo (85-94%)</span>
+            <span style="color:#B91C1C">● Quá tải (&ge;95%)</span>
           </div>
         </div>
         <div class="card-body" style="padding:10px 14px">
@@ -274,47 +264,6 @@
             <svg id="catlaiSvgMap" class="catlai-svg-map" viewBox="0 0 960 490" xmlns="http://www.w3.org/2000/svg">
               <!-- Render động SVG bởi JavaScript -->
             </svg>
-            <div id="catlaiDigitalTwinContainer" class="catlai-digital-twin-container" style="display:none;width:100%;min-height:540px;text-align:center;position:relative;overflow:hidden">
-              <!-- Nhúng trực tiếp SVG Bản Đồ Số 160ha để tương tác Heatmap và Tooltip -->
-            </div>
-            
-            <!-- Thanh Công Cụ Điều Khiển Bản Đồ Chuẩn GIS Chuyên Nghiệp -->
-            <div id="mapPanZoomToolbar" class="map-panzoom-toolbar" style="display:none">
-              <!-- Nút Zoom In -->
-              <button class="panzoom-btn" onclick="zoomDigitalMap(1.25)" title="Phóng to bản đồ (Zoom In [+])">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              </button>
-              
-              <!-- Chỉ số % Zoom Level -->
-              <div id="panzoomScaleIndicator" class="panzoom-indicator" title="Mức Zoom hiện tại">100%</div>
-              
-              <!-- Nút Zoom Out -->
-              <button class="panzoom-btn" onclick="zoomDigitalMap(0.8)" title="Thu nhỏ bản đồ (Zoom Out [-])">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              </button>
-
-              <div class="panzoom-divider"></div>
-
-              <!-- Nút Auto Center (Focus Căn Giữa 8 Block Phân Khu B) -->
-              <button class="panzoom-btn btn-focus" onclick="autoCenterYardBlocks()" title="🎯 Tự động căn giữa & Focus vào 8 Block Phân Khu B (Auto Center)">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <circle cx="12" cy="12" r="3.5" fill="currentColor"></circle>
-                  <line x1="12" y1="2" x2="12" y2="6"></line>
-                  <line x1="12" y1="18" x2="12" y2="22"></line>
-                  <line x1="2" y1="12" x2="6" y2="12"></line>
-                  <line x1="18" y1="12" x2="22" y2="12"></line>
-                </svg>
-              </button>
-
-              <!-- Nút Reset Fit View Toàn Cảnh 160ha -->
-              <button class="panzoom-btn" onclick="resetDigitalMapZoom()" title="⛶ Đưa về toàn cảnh 160ha (Fit View 100%)">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2">
-                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-                </svg>
-              </button>
-            </div>
-
             <div id="catlaiMapTooltip" class="catlai-tooltip"></div>
           </div>
         </div>
@@ -584,7 +533,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <div>Hệ Thống Phân Tích Container Tồn Bãi · <strong>Đồ án Tốt nghiệp / Đề án Cảng Biển</strong></div>
+      <div>Hệ Thống Phân Tích Container Tồn Bãi · <strong>Tiểu luận môn học Các hệ CSDL</strong></div>
       <div>Công nghệ: <strong>DuckDB</strong> · <strong>Apache Parquet</strong> · <strong>FastAPI</strong> · <strong>Plotly.js</strong></div>
     </footer>
   </main>

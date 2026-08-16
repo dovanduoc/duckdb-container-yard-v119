@@ -85,9 +85,9 @@ def classify_container_csv(csv_file_path):
                          )
                         THEN 'Rule 06: container_type không thuộc danh mục hoặc sai lệch kích thước'
 
-                    -- Rule 7: full_empty thuộc {'F', 'E'}
-                    WHEN full_empty IS NULL OR UPPER(TRIM(full_empty)) NOT IN ('F', 'E')
-                        THEN 'Rule 07: full_empty phải là F hoặc E'
+                    -- Rule 7: full_empty thuộc {'F', 'E', 'FULL', 'EMPTY'}
+                    WHEN full_empty IS NULL OR UPPER(TRIM(full_empty)) NOT IN ('F', 'E', 'FULL', 'EMPTY')
+                        THEN 'Rule 07: full_empty phải là F hoặc E (hoặc FULL/EMPTY)'
 
                     -- Rule 8: gate_in_ts bắt buộc và đúng chuẩn thời gian
                     WHEN gate_in_ts IS NULL OR TRY_CAST(gate_in_ts AS TIMESTAMP) IS NULL
@@ -132,7 +132,11 @@ def classify_container_csv(csv_file_path):
             TRY_CAST(yard_area_id AS BIGINT) AS yard_area_id,
             TRY_CAST(container_size AS INTEGER) AS container_size,
             TRIM(container_type) AS container_type,
-            UPPER(TRIM(full_empty)) AS full_empty,
+            CASE
+                WHEN UPPER(TRIM(full_empty)) IN ('FULL', 'F') THEN 'F'
+                WHEN UPPER(TRIM(full_empty)) IN ('EMPTY', 'E') THEN 'E'
+                ELSE UPPER(TRIM(full_empty))
+            END AS full_empty,
             TRY_CAST(gate_in_ts AS TIMESTAMP) AS gate_in_ts,
             TRY_CAST(gate_out_ts AS TIMESTAMP) AS gate_out_ts,
             UPPER(TRIM(hist)) AS hist
