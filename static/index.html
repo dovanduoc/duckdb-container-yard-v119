@@ -244,13 +244,13 @@
     </section>
 
     <!-- =========================================================================
-         VIEW 2: SƠ ĐỒ BÃI 2D (SNP CÁT LÁI 2D VECTOR MAP & HEATMAP)
+         VIEW 2: SƠ ĐỒ BÃI 2D (8 BLOCK BÃI TERMINAL B)
          ========================================================================= -->
     <section class="view-panel" id="view-yard">
-      <!-- Sơ đồ Mặt bằng Cát Lái 2D Interactive Vector SVG -->
+      <!-- Lưới 8 Thẻ Phân Khu Bãi Container -->
       <article class="card">
         <div class="card-head" style="flex-wrap:wrap;gap:10px">
-          <div class="card-title" id="yardMapTitle">⚓ Sơ Đồ Không Gian Mặt Bằng Phân Khu B (Terminal B - SNP Cát Lái)</div>
+          <div class="card-title">🏗️ Danh Sách Chỉ Số Phân Bổ 8 Block Bãi Container Khu B (Terminal B)</div>
           <!-- Chú thích màu sắc Heatmap -->
           <div id="yardHeatmapLegend" style="display:flex;align-items:center;gap:12px;font-size:11px;font-weight:700">
             <span style="color:#047857">● An toàn (&lt;70%)</span>
@@ -258,21 +258,6 @@
             <span style="color:#B45309">● Cảnh báo (85-94%)</span>
             <span style="color:#B91C1C">● Quá tải (&ge;95%)</span>
           </div>
-        </div>
-        <div class="card-body" style="padding:10px 14px">
-          <div class="catlai-map-wrapper" id="catlaiMapWrapper">
-            <svg id="catlaiSvgMap" class="catlai-svg-map" viewBox="0 0 960 490" xmlns="http://www.w3.org/2000/svg">
-              <!-- Render động SVG bởi JavaScript -->
-            </svg>
-            <div id="catlaiMapTooltip" class="catlai-tooltip"></div>
-          </div>
-        </div>
-      </article>
-
-      <!-- Lưới 8 Thẻ Phân Khu Bãi Container -->
-      <article class="card">
-        <div class="card-head">
-          <div class="card-title">🏗️ Danh Sách Chỉ Số Phân Bổ 8 Block Bãi Container Khu B (Terminal B)</div>
         </div>
         <div class="card-body">
           <div class="yard-grid-4" id="yardHeatmapContainer">
