@@ -1,7 +1,7 @@
 """
 Dịch vụ phân tích dữ liệu và nghiệp vụ container/bãi cảng.
 Tuân thủ 100% chuẩn phân tích theo lát cắt thời gian As-of-Date (SOURCE_SCAN_RECOMMENDATIONS_V119).
-Quy tắc tồn tại ngày A: GateInDate <= A <= GateOutDate (hoặc GateOut IS NULL).
+Quy tắc tồn tại ngày A: GateInDate <= A <= GateOutDate (hoặc GateOut IS NULL/Sentinel Date/hist='N').
 Công thức lưu bãi: DATE_DIFF('day', GateInDate, A) + 1.
 """
 
@@ -107,7 +107,7 @@ def validate_date_range(start_date, end_date):
 def get_current_containers(limit=None, selected_date=None):
     """
     Lấy danh sách container tồn bãi theo lát cắt thời gian As-of-Date.
-    Quy tắc: GateInDate <= selected_date AND (gate_out_ts IS NULL OR selected_date <= GateOutDate).
+    Quy tắc: GateInDate <= selected_date AND (hist='N' OR gate_out_ts IS NULL OR selected_date <= GateOutDate).
     Công thức lưu bãi: DATE_DIFF('day', GateInDate, selected_date) + 1.
     Vị trí bãi: Suy ra từ sự kiện gần nhất tính đến ngày selected_date.
     """
@@ -155,7 +155,9 @@ def get_current_containers(limit=None, selected_date=None):
                 ON c.container_id = le.container_id AND le.rn = 1
             WHERE CAST(c.gate_in_ts AS DATE) <= CAST(? AS DATE)
               AND (
-                  c.gate_out_ts IS NULL
+                  UPPER(TRIM(c.hist)) = 'N'
+                  OR c.gate_out_ts IS NULL
+                  OR CAST(c.gate_out_ts AS DATE) < CAST(c.gate_in_ts AS DATE)
                   OR CAST(? AS DATE) <= CAST(c.gate_out_ts AS DATE)
               )
               AND c.gate_in_ts IS NOT NULL
@@ -241,7 +243,9 @@ def get_overdue_containers(min_days=30, limit=None, selected_date=None):
                 ON c.container_id = le.container_id AND le.rn = 1
             WHERE CAST(c.gate_in_ts AS DATE) <= CAST(? AS DATE)
               AND (
-                  c.gate_out_ts IS NULL
+                  UPPER(TRIM(c.hist)) = 'N'
+                  OR c.gate_out_ts IS NULL
+                  OR CAST(c.gate_out_ts AS DATE) < CAST(c.gate_in_ts AS DATE)
                   OR CAST(? AS DATE) <= CAST(c.gate_out_ts AS DATE)
               )
               AND c.gate_in_ts IS NOT NULL
@@ -378,7 +382,9 @@ def get_shipping_line_ranking(selected_date=None):
             FROM v_container AS c
             WHERE CAST(c.gate_in_ts AS DATE) <= CAST(? AS DATE)
               AND (
-                  c.gate_out_ts IS NULL
+                  UPPER(TRIM(c.hist)) = 'N'
+                  OR c.gate_out_ts IS NULL
+                  OR CAST(c.gate_out_ts AS DATE) < CAST(c.gate_in_ts AS DATE)
                   OR CAST(? AS DATE) <= CAST(c.gate_out_ts AS DATE)
               )
               AND c.gate_in_ts IS NOT NULL
@@ -446,7 +452,9 @@ def get_container_type_teu_ranking(selected_date=None):
             FROM v_container AS c
             WHERE CAST(c.gate_in_ts AS DATE) <= CAST(? AS DATE)
               AND (
-                  c.gate_out_ts IS NULL
+                  UPPER(TRIM(c.hist)) = 'N'
+                  OR c.gate_out_ts IS NULL
+                  OR CAST(c.gate_out_ts AS DATE) < CAST(c.gate_in_ts AS DATE)
                   OR CAST(? AS DATE) <= CAST(c.gate_out_ts AS DATE)
               )
               AND c.gate_in_ts IS NOT NULL
@@ -529,7 +537,9 @@ def get_upcoming_overdue_containers(overdue_threshold_days=30, warning_days=5, s
                 ON c.container_id = le.container_id AND le.rn = 1
             WHERE CAST(c.gate_in_ts AS DATE) <= CAST(? AS DATE)
               AND (
-                  c.gate_out_ts IS NULL
+                  UPPER(TRIM(c.hist)) = 'N'
+                  OR c.gate_out_ts IS NULL
+                  OR CAST(c.gate_out_ts AS DATE) < CAST(c.gate_in_ts AS DATE)
                   OR CAST(? AS DATE) <= CAST(c.gate_out_ts AS DATE)
               )
               AND c.gate_in_ts IS NOT NULL
