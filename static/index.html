@@ -252,10 +252,16 @@
         <div class="card-head" style="flex-wrap:wrap;gap:10px">
           <div class="card-title" id="yardMapTitle">⚓ Sơ Đồ Không Gian Mặt Bằng Phân Khu B (Terminal B - SNP Cát Lái)</div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <!-- Nút Chuyển Đổi Chế Độ Bản Đồ -->
-            <div class="btn-group" style="display:flex;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:2px;gap:2px">
-              <button id="btnModeTerminalB" class="btn btn-primary btn-sm" onclick="setYardMapMode('terminal-b')" style="padding:4px 10px;font-size:11px;font-weight:700">📦 Phân Khu B (8 Blocks)</button>
-              <button id="btnModeDigitalTwin" class="btn btn-secondary btn-sm" onclick="setYardMapMode('digital-twin')" style="padding:4px 10px;font-size:11px;font-weight:700">🗺️ Bản Đồ Số Cát Lái 160ha</button>
+            <!-- Nút Chuyển Đổi Chế Độ Bản Đồ (Icon & Nhãn Rõ Nét) -->
+            <div class="map-mode-switcher">
+              <button id="btnModeTerminalB" class="map-mode-btn active" onclick="setYardMapMode('terminal-b')" title="Sơ Đồ Logic Phân Khu B (8 Blocks)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect></svg>
+                <span>Bản đồ Logic</span>
+              </button>
+              <button id="btnModeDigitalTwin" class="map-mode-btn" onclick="setYardMapMode('digital-twin')" title="Bản Đồ Số Thực Địa 160 Hecta Cát Lái">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
+                <span>Bản đồ Số</span>
+              </button>
             </div>
             <!-- Chú thích màu sắc Heatmap -->
             <div id="yardHeatmapLegend" style="display:flex;align-items:center;gap:12px;font-size:11px;font-weight:700">

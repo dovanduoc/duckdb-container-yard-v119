@@ -827,16 +827,16 @@ function setYardMapMode(mode) {
     if (svgMap) svgMap.style.display = 'none';
     if (dtContainer) dtContainer.style.display = 'block';
     if (title) title.innerText = '🗺️ Bản Đồ Số 160ha Cảng Cát Lái (SNP Digital Twin GIS) • Tương Tác 8 Block Khu B & Heatmap Realtime';
-    if (btnB) { btnB.className = 'btn btn-secondary btn-sm'; }
-    if (btnDT) { btnDT.className = 'btn btn-primary btn-sm'; }
+    if (btnB) btnB.classList.remove('active');
+    if (btnDT) btnDT.classList.add('active');
     updateDigitalTwinHeatmap(cachedYardBlocks);
     showToast('🗺️ Đang hiển thị Bản Đồ Số GIS 160ha Cát Lái (Có tương tác Heatmap 8 Block)');
   } else {
     if (svgMap) svgMap.style.display = 'block';
     if (dtContainer) dtContainer.style.display = 'none';
     if (title) title.innerText = '⚓ Sơ Đồ Không Gian Mặt Bằng Phân Khu B (Terminal B - SNP Cát Lái) • 8 Block B1 - B8 Kết Nối Cổng B';
-    if (btnB) { btnB.className = 'btn btn-primary btn-sm'; }
-    if (btnDT) { btnDT.className = 'btn btn-secondary btn-sm'; }
+    if (btnB) btnB.classList.add('active');
+    if (btnDT) btnDT.classList.remove('active');
     showToast('📦 Đang hiển thị Sơ Đồ Điều Hành 8 Block Bãi Phân Khu B');
   }
 }
