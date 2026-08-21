@@ -179,3 +179,11 @@ const ChartManager = {
     Plotly.react(containerId, [trace], layout, { ...this.getDefaultConfig(), displayModeBar: false });
   }
 };
+
+// Nạp module ETL Upload riêng để giữ app.js ổn định và không phá các luồng demo hiện có.
+(function loadEtlUploadModule() {
+  const script = document.createElement('script');
+  script.src = '/static/js/etl-upload.js';
+  script.async = false;
+  document.head.appendChild(script);
+})();
