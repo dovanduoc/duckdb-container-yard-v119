@@ -29,13 +29,10 @@ def resolve_etl_csv_path(source_type, uploaded_file):
 
 
 def classify_container_csv(csv_file_path):
-    """
-    Sử dụng DuckDB SQL để phân loại dữ liệu theo 10 quy tắc hợp đồng dữ liệu.
-    """
+    """Sử dụng DuckDB SQL để phân loại dữ liệu theo 10 quy tắc hợp đồng dữ liệu."""
     con = get_connection()
     safe_path = escape_duckdb_path(csv_file_path)
 
-    # Đọc dữ liệu đầu vào
     con.execute(f"""
         CREATE OR REPLACE TEMP TABLE stage_container_raw AS
         SELECT *
@@ -46,36 +43,30 @@ def classify_container_csv(csv_file_path):
         )
     """)
 
-    # Kiểm tra 10 quy tắc hợp đồng
     con.execute("""
         CREATE OR REPLACE TEMP TABLE stage_container_classified AS
         WITH rules_applied AS (
             SELECT
                 r.*,
                 CASE
-                    -- Rule 1: container_id bắt buộc và là số nguyên dương
                     WHEN container_id IS NULL OR TRIM(container_id) = '' OR TRY_CAST(container_id AS BIGINT) IS NULL OR TRY_CAST(container_id AS BIGINT) <= 0
                         THEN 'Rule 01: container_id không hợp lệ hoặc thiếu'
 
-                    -- Rule 2: container_no đúng chuẩn ISO 6346 (4 chữ cái + 7 số)
+                    -- Chỉ kiểm cấu trúc mã ISO 6346 (4 chữ + 7 số), chưa tính check digit.
                     WHEN container_no IS NULL OR NOT REGEXP_MATCHES(TRIM(container_no), '^[A-Z]{4}[0-9]{7}$')
-                        THEN 'Rule 02: container_no sai định dạng ISO 6346'
+                        THEN 'Rule 02: container_no sai cấu trúc ISO 6346 (4 chữ + 7 số)'
 
-                    -- Rule 3: shipping_line_id hợp lệ và tồn tại trong danh mục v_shipping_line
                     WHEN shipping_line_id IS NULL OR TRY_CAST(shipping_line_id AS BIGINT) IS NULL
                          OR TRY_CAST(shipping_line_id AS BIGINT) NOT IN (SELECT shipping_line_id FROM v_shipping_line)
                         THEN 'Rule 03: shipping_line_id không tồn tại trong danh mục'
 
-                    -- Rule 4: yard_area_id hợp lệ và tồn tại trong danh mục v_yard_area
                     WHEN yard_area_id IS NULL OR TRY_CAST(yard_area_id AS BIGINT) IS NULL
                          OR TRY_CAST(yard_area_id AS BIGINT) NOT IN (SELECT yard_area_id FROM v_yard_area)
                         THEN 'Rule 04: yard_area_id không tồn tại trong danh mục'
 
-                    -- Rule 5: container_size thuộc {20, 40, 45}
                     WHEN container_size IS NULL OR TRY_CAST(container_size AS INTEGER) NOT IN (20, 40, 45)
                         THEN 'Rule 05: container_size không thuộc {20, 40, 45}'
 
-                    -- Rule 6: container_type bắt buộc, tồn tại trong danh mục và tương thích size
                     WHEN container_type IS NULL OR TRIM(container_type) = ''
                          OR TRIM(container_type) NOT IN (SELECT container_type FROM v_container_type_ref)
                          OR (
@@ -85,21 +76,18 @@ def classify_container_csv(csv_file_path):
                          )
                         THEN 'Rule 06: container_type không thuộc danh mục hoặc sai lệch kích thước'
 
-                    -- Rule 7: full_empty thuộc {'F', 'E', 'FULL', 'EMPTY'}
                     WHEN full_empty IS NULL OR UPPER(TRIM(full_empty)) NOT IN ('F', 'E', 'FULL', 'EMPTY')
                         THEN 'Rule 07: full_empty phải là F hoặc E (hoặc FULL/EMPTY)'
 
-                    -- Rule 8: gate_in_ts bắt buộc và đúng chuẩn thời gian
                     WHEN gate_in_ts IS NULL OR TRY_CAST(gate_in_ts AS TIMESTAMP) IS NULL
                         THEN 'Rule 08: gate_in_ts không hợp lệ'
 
-                    -- Rule 9: gate_out_ts phải sau gate_in_ts nếu có
+                    -- Nếu có Gate-Out thì phải sau Gate-In.
                     WHEN gate_out_ts IS NOT NULL AND TRIM(gate_out_ts) != '' AND (
                         TRY_CAST(gate_out_ts AS TIMESTAMP) IS NULL OR
                         TRY_CAST(gate_out_ts AS TIMESTAMP) <= TRY_CAST(gate_in_ts AS TIMESTAMP)
                     ) THEN 'Rule 09: gate_out_ts phải sau gate_in_ts'
 
-                    -- Rule 10: hist thuộc {'Y', 'N'}
                     WHEN hist IS NULL OR UPPER(TRIM(hist)) NOT IN ('Y', 'N')
                         THEN 'Rule 10: hist phải là Y hoặc N'
 
@@ -111,7 +99,6 @@ def classify_container_csv(csv_file_path):
         FROM rules_applied
     """)
 
-    # Đếm số lượng hợp lệ và lỗi
     summary_df = con.execute("""
         SELECT
             COUNT(*) AS total_rows,
