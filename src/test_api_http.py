@@ -53,7 +53,20 @@ def run_http_api_tests():
         assert etl["total_rows"] >= 204
         assert etl["error_rows"] >= 4
 
-    print("[PASS] 5 HTTP integration tests")
+        upload_csv_path = project_root / "data" / "etl_input" / "container_etl_demo.csv"
+        with upload_csv_path.open("rb") as upload_file:
+            etl_upload = _assert_ok(
+                client.post(
+                    "/api/etl/run",
+                    data={"source_type": "upload"},
+                    files={"file": (upload_csv_path.name, upload_file, "text/csv")},
+                ),
+                "POST /api/etl/run multipart upload",
+            )
+        assert etl_upload["total_rows"] >= 204
+        assert etl_upload["error_rows"] >= 4
+
+    print("[PASS] 6 HTTP integration tests")
     return True
 
 
