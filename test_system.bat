@@ -9,6 +9,21 @@ echo ===========================================================================
 echo.
 
 python src\tester.py
+if errorlevel 1 goto :failed
 
 echo.
+echo --- HTTP INTEGRATION TESTS QUA FASTAPI TESTCLIENT ---
+python src\test_api_http.py
+if errorlevel 1 goto :failed
+
+echo.
+echo [PASS] TOAN BO KIEM THU DA HOAN THANH.
+goto :end
+
+:failed
+echo.
+echo [FAIL] CO KIEM THU KHONG DAT.
+exit /b 1
+
+:end
 pause
