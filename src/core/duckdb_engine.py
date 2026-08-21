@@ -2,7 +2,7 @@
 Quản lý kết nối DuckDB và khởi tạo các View nghiệp vụ.
 """
 
-from pathlib import Path
+import threading
 import duckdb
 import pandas as pd
 
@@ -13,7 +13,10 @@ from src.config import (
     RAW_DATA_PATH
 )
 
-_connection = None
+# FastAPI có thể thực thi các endpoint sync trên nhiều worker thread.
+# Mỗi thread giữ một DuckDB connection riêng để không dùng chung state/TEMP TABLE.
+_thread_state = threading.local()
+_init_lock = threading.Lock()
 
 
 def escape_duckdb_path(file_path):
@@ -22,12 +25,25 @@ def escape_duckdb_path(file_path):
 
 
 def get_connection():
-    """Lấy hoặc tạo kết nối DuckDB in-memory duy nhất."""
-    global _connection
-    if _connection is None:
-        _connection = duckdb.connect()
-        init_duckdb_views(_connection)
-    return _connection
+    """Lấy hoặc tạo DuckDB in-memory connection riêng cho thread hiện tại."""
+    con = getattr(_thread_state, "connection", None)
+    if con is None:
+        con = duckdb.connect()
+        # Chỉ khóa bước bootstrap file/view để tránh race khi nhiều request đầu tiên đến cùng lúc.
+        with _init_lock:
+            init_duckdb_views(con)
+        _thread_state.connection = con
+    return con
+
+
+def close_connection():
+    """Đóng DuckDB connection của thread hiện tại (nếu có)."""
+    con = getattr(_thread_state, "connection", None)
+    if con is not None:
+        try:
+            con.close()
+        finally:
+            _thread_state.connection = None
 
 
 def init_duckdb_views(con):
@@ -56,10 +72,20 @@ def init_duckdb_views(con):
     if not ETL_DEMO_INPUT_PATH.exists():
         _prepare_etl_demo_csv(con)
 
-    # 3. Tạo 6 TEMP VIEW
+    # 3. Tạo 6 TEMP VIEW.
+    # v_container chuẩn hóa hist theo temporal truth: Gate-Out hợp lệ là bằng chứng đã ra bãi,
+    # tránh trường hợp hist='N' làm container bị tính tồn sau Gate-Out.
     con.execute(f"""
         CREATE OR REPLACE TEMP VIEW v_container AS
-        SELECT *
+        SELECT
+            * EXCLUDE (hist),
+            CASE
+                WHEN TRY_CAST(gate_in_ts AS TIMESTAMP) IS NOT NULL
+                 AND TRY_CAST(gate_out_ts AS TIMESTAMP) IS NOT NULL
+                 AND TRY_CAST(gate_out_ts AS TIMESTAMP) >= TRY_CAST(gate_in_ts AS TIMESTAMP)
+                    THEN 'Y'
+                ELSE UPPER(TRIM(hist))
+            END AS hist
         FROM read_parquet('{escape_duckdb_path(PARQUET_PATHS["container"])}');
 
         CREATE OR REPLACE TEMP VIEW v_container_event AS
