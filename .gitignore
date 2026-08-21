@@ -36,5 +36,14 @@ Desktop.ini
 .DS_Store
 
 # Benchmark Big Data files (> 100MB)
-data/benchmark/container_*.csv
-data/benchmark/container_*.parquet
+data/benchmark/container_1000000.csv
+data/benchmark/container_1000000.parquet
+data/benchmark/container_5000000.csv
+data/benchmark/container_5000000.parquet
+
+# AI Agents & IDE Tooling
+.agents/
+.agentsroom/
+.claude/
+.mcp.json
+
